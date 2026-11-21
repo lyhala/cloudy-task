@@ -2,6 +2,7 @@ import { join } from 'node:path'
 import { app, BrowserWindow, dialog, ipcMain, shell, webContents } from 'electron'
 import { readFile, writeFile } from 'node:fs/promises'
 import { STORAGE_METHODS } from '@core/storage'
+import { expiredArchived } from '@core/tasks'
 import { TRASH_DAYS } from '@core/types'
 import { CalendarSyncManager } from './calendar-sync'
 import { discardAttachment, openAttachment, pickAndAdd } from './attachments'
@@ -43,7 +44,7 @@ function createMainWindow(): void {
     minHeight: compactStart ? 420 : 520,
     center: true,
     show: false,
-    title: 'Note',
+    title: 'Cloudy Task',
     icon: join(__dirname, '../../resources/icon.png'),
     webPreferences: { preload: preloadPath, contextIsolation: true, sandbox: true }
   })
@@ -74,6 +75,16 @@ if (!app.requestSingleInstanceLock()) {
   app.whenReady().then(async () => {
     const storage = new SqliteStorage(join(app.getPath('userData'), 'data.sqlite'))
     await storage.purgeTrash(Date.now() - TRASH_DAYS * 86_400_000)
+    // Task đã archived quá hạn giữ (mặc định 24 tháng) vào thùng rác cùng task con; sau 30 ngày dọn hẳn.
+    const cleanupArchived = async (): Promise<void> => {
+      const now = Date.now()
+      const gone = expiredArchived(await storage.listTasks(), (await storage.getSettings()).archiveMonths, now)
+      for (const t of gone) await storage.saveTask({ ...t, deletedAt: now, updatedAt: now })
+      if (gone.length) {
+        sync.markDirty()
+        broadcast('sync:applied', null)
+      }
+    }
 
     const broadcast = (channel: string, payload: unknown, except?: Electron.WebContents) => {
       for (const wc of webContents.getAllWebContents()) {
@@ -113,7 +124,7 @@ if (!app.requestSingleInstanceLock()) {
     ipcMain.handle('calendar:addIcal', (_e, name: string, url: string) => gcal.addIcal(name, url))
     ipcMain.handle('calendar:removeIcal', (_e, id: string) => gcal.removeIcal(id))
     ipcMain.handle('calendar:pushReminder', (_e, r) => gcal.pushReminder(r))
-    const DIRTY_ON: string[] = ['saveNote', 'saveFolder', 'saveReminder', 'deleteNoteForever', 'saveCalendar', 'saveEvent']
+    const DIRTY_ON: string[] = ['saveNote', 'saveFolder', 'saveReminder', 'saveProject', 'saveTask', 'deleteNoteForever', 'saveCalendar', 'saveEvent']
     ipcMain.handle('google:status', () => sync.status())
     ipcMain.handle('google:signIn', () => sync.connect())
     ipcMain.handle('google:signOut', () => sync.disconnect())
@@ -140,12 +151,15 @@ if (!app.requestSingleInstanceLock()) {
     })
     sync.start()
     gcal.start()
+    void cleanupArchived()
+    const cleanupTimer = setInterval(() => void cleanupArchived(), 6 * 3_600_000)
     setupAutoUpdate((msg) => broadcast('update:message', msg))
     ipcMain.handle('update:info', () => ({ version: app.getVersion(), ...updatesAllowed() }))
     app.on('before-quit', () => {
       quitting = true
       sync.stop()
       gcal.stop()
+      clearInterval(cleanupTimer)
       desktop.quit()
     })
 

@@ -1,5 +1,5 @@
 import type { CalEvent, CalendarSource } from './calendar'
-import type { AppNotification, Folder, Note, Reminder, Settings } from './types'
+import type { AppNotification, Folder, Note, Project, Reminder, Settings, Task } from './types'
 
 /** Lớp trung gian lưu trữ. Desktop dùng SQLite, mobile sau này dùng cách khác. */
 export interface Storage {
@@ -14,6 +14,11 @@ export interface Storage {
   /** Xóa hẳn một note khỏi thùng rác. */
   deleteNoteForever(id: string): Promise<void>
   listReminders(): Promise<Reminder[]>
+  /** Project và task (gồm cả mục đã xóa; giao diện tự lọc). */
+  listProjects(): Promise<Project[]>
+  saveProject(project: Project): Promise<void>
+  listTasks(): Promise<Task[]>
+  saveTask(task: Task): Promise<void>
   saveReminder(reminder: Reminder): Promise<void>
   /** Trung tâm thông báo trong app, mới nhất trước. */
   listNotifications(): Promise<AppNotification[]>
@@ -38,6 +43,10 @@ export const STORAGE_METHODS = [
   'deleteNoteForever',
   'listReminders',
   'saveReminder',
+  'listProjects',
+  'saveProject',
+  'listTasks',
+  'saveTask',
   'listNotifications',
   'saveNotification',
   'markAllNotificationsRead',

@@ -1,7 +1,8 @@
 // Bộ icon menu vẽ bằng SVG (màu mềm kiểu pastel). Avatar mặc định là ảnh đất sét.
 import clayAvatar from './assets/avatar-clay.webp'
+import clayAvatarPurple from './assets/avatar-clay-purple.webp'
 
-export type NavIconKind = 'myday' | 'note' | 'reminder' | 'calendar' | 'bell' | 'settings'
+export type NavIconKind = 'myday' | 'note' | 'task' | 'project' | 'reminder' | 'calendar' | 'bell' | 'settings'
 
 const SUN_RAYS = [0, 45, 90, 135, 180, 225, 270, 315]
 const GEAR_TEETH = [0, 45, 90, 135]
@@ -53,6 +54,30 @@ const glyphs: Record<NavIconKind, React.ReactNode> = {
       <circle cx="16" cy="17.5" r="10.2" fill="url(#ni-clock)" />
       <circle cx="16" cy="17.5" r="7.4" fill="#fff" />
       <path d="M16 12.6 V17.6 L19.6 19.6" stroke="#ee5479" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+    </>
+  ),
+  task: (
+    <>
+      <defs>
+        <linearGradient id="ni-task" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#8de0b4" />
+          <stop offset="1" stopColor="#2fa874" />
+        </linearGradient>
+      </defs>
+      <rect x="5" y="4" width="22" height="24" rx="6" fill="url(#ni-task)" />
+      <path d="M10.5 16.5 L14.5 20.5 L22 12" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+    </>
+  ),
+  project: (
+    <>
+      <defs>
+        <linearGradient id="ni-proj" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#9cc7fa" />
+          <stop offset="1" stopColor="#2f6fd1" />
+        </linearGradient>
+      </defs>
+      <path d="M4 9.5 A3.5 3.5 0 0 1 7.5 6 H13 L16 9 H24.5 A3.5 3.5 0 0 1 28 12.5 V23.5 A3.5 3.5 0 0 1 24.5 27 H7.5 A3.5 3.5 0 0 1 4 23.5 Z" fill="url(#ni-proj)" />
+      <rect x="4" y="13" width="24" height="2.2" rx="1.1" fill="#fff" opacity=".45" />
     </>
   ),
   calendar: (
@@ -122,7 +147,14 @@ export function NavIcon({ kind }: { kind: NavIconKind }) {
 
 // ---- Avatar ----
 
-/** Hiển thị avatar: ảnh người dùng tải lên (data URL), còn lại là ảnh mặc định (cô bé đất sét). */
+/** Avatar mẫu có sẵn: 'preset:0' là cô gái tóc xoăn (mặc định), 'preset:1' là cô bé áo len tím của bản cũ. */
+export const AVATAR_PRESETS = [
+  { id: 'preset:0', src: clayAvatar, title: 'Cô gái tóc xoăn' },
+  { id: 'preset:1', src: clayAvatarPurple, title: 'Cô bé áo tím' }
+]
+
+/** Hiển thị avatar: ảnh người dùng tải lên (data URL) hoặc một avatar mẫu; không nhận ra thì dùng ảnh mặc định. */
 export function AvatarImage({ value }: { value: string }) {
-  return <img src={value.startsWith('data:image/') ? value : clayAvatar} alt="" draggable={false} />
+  const src = value.startsWith('data:image/') ? value : (AVATAR_PRESETS.find((p) => p.id === value) ?? AVATAR_PRESETS[0]).src
+  return <img src={src} alt="" draggable={false} />
 }

@@ -43,6 +43,12 @@ Màn chi tiết project: thông tin, danh sách task theo trạng thái, số ta
 | Trạng thái | Pending, In progress, Done, Re-do |
 | Task cha | Task con thuộc một task lớn |
 
+Cách hiển thị (kiểu Asana):
+
+- Danh sách task là các dòng gọn: ô tick, tiêu đề, project (chấm màu), hạn, trạng thái. Bấm vào dòng thì **chi tiết xổ ra ngay dưới dòng đó** (mô tả, project, ngày bắt đầu và kết thúc, nhắc, trạng thái, task con). Bấm lần nữa thì thu lại. Có thể mở nhiều task cùng lúc.
+- Sửa trực tiếp trong phần chi tiết, tự lưu, không có hộp thoại riêng.
+- Task con nằm trong phần chi tiết của task lớn, cũng là các dòng gọn bấm để xổ ra thu vào theo cùng cách.
+
 Trạng thái:
 
 - **Pending:** chưa làm. **In progress:** đang làm. **Done:** xong. **Re-do:** bị yêu cầu sửa hoặc làm lại.

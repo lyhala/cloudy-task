@@ -64,14 +64,16 @@ class MemRemote implements RemoteStore {
 }
 
 class MemLocal implements SyncLocal {
-  data: Record<SyncKind, Map<string, SyncEntity>> = { note: new Map(), folder: new Map(), reminder: new Map(), calendar: new Map(), event: new Map() }
+  data: Record<SyncKind, Map<string, SyncEntity>> = { note: new Map(), folder: new Map(), reminder: new Map(), calendar: new Map(), event: new Map(), project: new Map(), task: new Map() }
   async listAll(): Promise<Record<SyncKind, SyncEntity[]>> {
     return {
       note: [...this.data.note.values()],
       folder: [...this.data.folder.values()],
       reminder: [...this.data.reminder.values()],
       calendar: [...this.data.calendar.values()],
-      event: [...this.data.event.values()]
+      event: [...this.data.event.values()],
+      project: [...this.data.project.values()],
+      task: [...this.data.task.values()]
     }
   }
   async put(kind: SyncKind, e: SyncEntity): Promise<void> {
@@ -271,7 +273,7 @@ test('tên file lạ trên kho từ xa được bỏ qua', async () => {
   assert.deepEqual([res.pulled, res.pushed], [0, 0])
   assert.equal(parseRemoteName('note-abc.json')?.id, 'abc')
   assert.equal(parseRemoteName('x.json'), null)
-  assert.deepEqual(SYNC_KINDS, ['note', 'folder', 'reminder', 'calendar', 'event'])
+  assert.deepEqual(SYNC_KINDS, ['note', 'folder', 'reminder', 'calendar', 'event', 'project', 'task'])
 })
 
 test('lịch trong app và sự kiện của nó đồng bộ sang máy khác', async () => {

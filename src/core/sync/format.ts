@@ -3,8 +3,8 @@
 
 export const REMOTE_FORMAT_VERSION = 1
 
-export type SyncKind = 'note' | 'folder' | 'reminder' | 'calendar' | 'event'
-export const SYNC_KINDS: SyncKind[] = ['note', 'folder', 'reminder', 'calendar', 'event']
+export type SyncKind = 'note' | 'folder' | 'reminder' | 'calendar' | 'event' | 'project' | 'task'
+export const SYNC_KINDS: SyncKind[] = ['note', 'folder', 'reminder', 'calendar', 'event', 'project', 'task']
 
 /** Phần chung của mọi thực thể đồng bộ được (Note, Folder, Reminder đều có các trường này). */
 export interface SyncEntity {
@@ -29,7 +29,7 @@ export const keyOf = (kind: SyncKind, id: string): string => `${kind}:${id}`
 export const remoteNameOf = (kind: SyncKind, id: string): string => `${kind}-${id}.json`
 
 export function parseRemoteName(name: string): { kind: SyncKind; id: string } | null {
-  const m = /^(note|folder|reminder|calendar|event)-(.+)\.json$/.exec(name)
+  const m = /^(note|folder|reminder|calendar|event|project|task)-(.+)\.json$/.exec(name)
   return m ? { kind: m[1] as SyncKind, id: m[2] } : null
 }
 

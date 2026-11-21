@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import type { Settings } from '@core/types'
-import { AvatarImage } from './Icons'
+import { AVATAR_PRESETS, AvatarImage } from './Icons'
 
 const AVATAR_SIZE = 256
 const DEFAULT_AVATAR = 'preset:0'
@@ -77,9 +77,11 @@ export function ProfilePopover({ settings, onSave, onClose }: PopProps) {
       </label>
       <span className="lbl">Avatar</span>
       <div className="avatar-tiles">
-        <button className={`avatar tile ${!usingUploaded ? 'on' : ''}`} title="Ảnh mặc định" onClick={() => setAvatar(DEFAULT_AVATAR)}>
-          <AvatarImage value={DEFAULT_AVATAR} />
-        </button>
+        {AVATAR_PRESETS.map((p) => (
+          <button key={p.id} className={`avatar tile ${avatar === p.id ? 'on' : ''}`} title={p.title} onClick={() => setAvatar(p.id)}>
+            <AvatarImage value={p.id} />
+          </button>
+        ))}
         {uploaded && (
           <button className={`avatar tile ${usingUploaded ? 'on' : ''}`} title="Ảnh của bạn" onClick={() => setAvatar(uploaded)}>
             <AvatarImage value={uploaded} />

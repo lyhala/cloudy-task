@@ -11,6 +11,8 @@ const src = {
   reminders: [newReminder({ title: 'R' })],
   calendars: [local, google],
   events: [newEvent({ calendarId: 'L', title: 'E1' }), newEvent({ calendarId: 'G', title: 'E2' })],
+  projects: [],
+  tasks: [],
   settings: DEFAULT_SETTINGS
 }
 const t = (name: string, fn: () => void) => (fn(), console.log('ok   ', name))
@@ -38,7 +40,7 @@ t('gộp: thêm mục mới, chỉ ghi đè khi bản trong file mới hơn', ()
   const b = buildBackup(src)
   const older = { ...src.notes[0], title: 'Bản cũ', updatedAt: src.notes[0].updatedAt - 10 }
   const newer = { ...src.notes[0], title: 'Bản mới', updatedAt: src.notes[0].updatedAt + 10 }
-  const empty = { notes: [], folders: [], reminders: [], calendars: [], events: [] }
+  const empty = { notes: [], folders: [], reminders: [], projects: [], tasks: [], calendars: [], events: [] }
   assert.equal(planImport(b, empty).notes.length, 1)
   assert.equal(planImport(b, { ...empty, notes: [newer] }).notes.length, 0)
   assert.equal(planImport(b, { ...empty, notes: [older] }).notes.length, 1)

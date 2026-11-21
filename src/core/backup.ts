@@ -1,9 +1,9 @@
 // Xuất / nhập toàn bộ dữ liệu ra một file JSON. Không phụ thuộc Electron.
-// Chỉ gồm dữ liệu của chính người dùng: note, folder, reminder, lịch trong app và sự kiện của chúng.
+// Chỉ gồm dữ liệu của chính người dùng: note, folder, reminder, project, task, lịch trong app và sự kiện của chúng.
 // Không gồm lịch Google/iCal (chỉ là bản đệm), token hay link iCal bí mật.
 
 import type { CalEvent, CalendarSource } from './calendar'
-import { FORMAT_VERSION, type Folder, type Note, type Reminder, type Settings } from './types'
+import { FORMAT_VERSION, type Folder, type Note, type Project, type Reminder, type Settings, type Task } from './types'
 
 export const BACKUP_APP = 'cloudy-task'
 
@@ -14,6 +14,8 @@ export interface BackupData {
   notes: Note[]
   folders: Folder[]
   reminders: Reminder[]
+  projects: Project[]
+  tasks: Task[]
   calendars: CalendarSource[]
   events: CalEvent[]
   settings: Settings
@@ -23,6 +25,8 @@ export interface BackupSource {
   notes: Note[]
   folders: Folder[]
   reminders: Reminder[]
+  projects: Project[]
+  tasks: Task[]
   calendars: CalendarSource[]
   events: CalEvent[]
   settings: Settings
@@ -38,6 +42,8 @@ export function buildBackup(src: BackupSource, now = Date.now()): BackupData {
     notes: src.notes.filter((n) => !n.deletedAt),
     folders: src.folders.filter((f) => !f.deletedAt),
     reminders: src.reminders.filter((r) => !r.deletedAt),
+    projects: src.projects.filter((p) => !p.deletedAt),
+    tasks: src.tasks.filter((t) => !t.deletedAt),
     calendars: localCals,
     events: src.events.filter((e) => !e.deletedAt && ids.has(e.calendarId)),
     settings: src.settings
@@ -65,6 +71,8 @@ export function parseBackup(text: string): BackupData {
     notes: list<Note>(b.notes).filter((n) => n && typeof n.id === 'string'),
     folders: list<Folder>(b.folders).filter((f) => f && typeof f.id === 'string'),
     reminders: list<Reminder>(b.reminders).filter((r) => r && typeof r.id === 'string'),
+    projects: list<Project>(b.projects).filter((p) => p && typeof p.id === 'string'),
+    tasks: list<Task>(b.tasks).filter((t) => t && typeof t.id === 'string'),
     calendars: list<CalendarSource>(b.calendars).filter((c) => c && typeof c.id === 'string'),
     events: list<CalEvent>(b.events).filter((e) => e && typeof e.id === 'string'),
     settings: b.settings as Settings
@@ -75,6 +83,8 @@ export interface ImportPlan {
   notes: Note[]
   folders: Folder[]
   reminders: Reminder[]
+  projects: Project[]
+  tasks: Task[]
   calendars: CalendarSource[]
   events: CalEvent[]
 }
@@ -85,7 +95,7 @@ export interface ImportPlan {
  */
 export function planImport(
   data: BackupData,
-  current: { notes: Note[]; folders: Folder[]; reminders: Reminder[]; calendars: CalendarSource[]; events: CalEvent[] }
+  current: { notes: Note[]; folders: Folder[]; reminders: Reminder[]; projects: Project[]; tasks: Task[]; calendars: CalendarSource[]; events: CalEvent[] }
 ): ImportPlan {
   const pick = <T extends { id: string; updatedAt: number }>(incoming: T[], have: T[]): T[] => {
     const byId = new Map(have.map((x) => [x.id, x]))
@@ -98,6 +108,8 @@ export function planImport(
     notes: pick(data.notes, current.notes),
     folders: pick(data.folders, current.folders),
     reminders: pick(data.reminders, current.reminders),
+    projects: pick(data.projects, current.projects),
+    tasks: pick(data.tasks, current.tasks),
     calendars: pick(data.calendars, current.calendars),
     events: pick(data.events, current.events)
   }

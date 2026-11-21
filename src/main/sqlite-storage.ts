@@ -3,7 +3,7 @@ import type { CalEvent, CalendarSource } from '@core/calendar'
 import type { Storage } from '@core/storage'
 import type { SyncLocal, SyncState, SyncStateStore } from '@core/sync/engine'
 import type { SyncEntity, SyncKind } from '@core/sync/format'
-import { DEFAULT_SETTINGS, type AppNotification, type Folder, type Note, type Reminder, type Settings } from '@core/types'
+import { DEFAULT_SETTINGS, type AppNotification, type Folder, type Note, type Project, type Reminder, type Settings, type Task } from '@core/types'
 
 // node:sqlite có sẵn trong Node của Electron, không cần build native.
 const { DatabaseSync: Database } = process.getBuiltinModule('node:sqlite') as typeof import('node:sqlite')
@@ -19,6 +19,8 @@ export class SqliteStorage implements Storage {
       CREATE TABLE IF NOT EXISTS folders (id TEXT PRIMARY KEY, data TEXT NOT NULL, deleted_at INTEGER);
       CREATE TABLE IF NOT EXISTS settings (k TEXT PRIMARY KEY, data TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS reminders (id TEXT PRIMARY KEY, data TEXT NOT NULL, deleted_at INTEGER);
+      CREATE TABLE IF NOT EXISTS projects (id TEXT PRIMARY KEY, data TEXT NOT NULL, deleted_at INTEGER);
+      CREATE TABLE IF NOT EXISTS tasks (id TEXT PRIMARY KEY, data TEXT NOT NULL, deleted_at INTEGER);
       CREATE TABLE IF NOT EXISTS notifications (id TEXT PRIMARY KEY, data TEXT NOT NULL, at INTEGER NOT NULL);
       CREATE TABLE IF NOT EXISTS calendars (id TEXT PRIMARY KEY, data TEXT NOT NULL, deleted_at INTEGER);
       CREATE TABLE IF NOT EXISTS events (id TEXT PRIMARY KEY, data TEXT NOT NULL, deleted_at INTEGER, cal TEXT NOT NULL, start_ms INTEGER, end_ms INTEGER);
@@ -63,6 +65,8 @@ export class SqliteStorage implements Storage {
     const n = this.db.prepare('DELETE FROM notes WHERE deleted_at IS NOT NULL AND deleted_at < ?').run(before)
     const r = this.db.prepare('DELETE FROM reminders WHERE deleted_at IS NOT NULL AND deleted_at < ?').run(before)
     this.db.prepare('DELETE FROM folders WHERE deleted_at IS NOT NULL AND deleted_at < ?').run(before)
+    this.db.prepare('DELETE FROM projects WHERE deleted_at IS NOT NULL AND deleted_at < ?').run(before)
+    this.db.prepare('DELETE FROM tasks WHERE deleted_at IS NOT NULL AND deleted_at < ?').run(before)
     this.db.prepare('DELETE FROM events WHERE deleted_at IS NOT NULL AND deleted_at < ?').run(before)
     this.db.prepare('DELETE FROM calendars WHERE deleted_at IS NOT NULL AND deleted_at < ?').run(before)
     this.db.prepare('DELETE FROM event_alerts WHERE at < ?').run(before)
@@ -88,6 +92,26 @@ export class SqliteStorage implements Storage {
       .run(r.id, JSON.stringify(r), r.deletedAt)
   }
 
+  async listProjects(): Promise<Project[]> {
+    return this.db.prepare('SELECT data FROM projects').all().map((r) => JSON.parse(r.data as string))
+  }
+
+  async saveProject(p: Project): Promise<void> {
+    this.db
+      .prepare('INSERT INTO projects (id, data, deleted_at) VALUES (?, ?, ?) ON CONFLICT(id) DO UPDATE SET data = excluded.data, deleted_at = excluded.deleted_at')
+      .run(p.id, JSON.stringify(p), p.deletedAt)
+  }
+
+  async listTasks(): Promise<Task[]> {
+    return this.db.prepare('SELECT data FROM tasks').all().map((r) => JSON.parse(r.data as string))
+  }
+
+  async saveTask(t: Task): Promise<void> {
+    this.db
+      .prepare('INSERT INTO tasks (id, data, deleted_at) VALUES (?, ?, ?) ON CONFLICT(id) DO UPDATE SET data = excluded.data, deleted_at = excluded.deleted_at')
+      .run(t.id, JSON.stringify(t), t.deletedAt)
+  }
+
   async listNotifications(): Promise<AppNotification[]> {
     return this.db.prepare('SELECT data FROM notifications ORDER BY at DESC LIMIT 200').all().map((r) => JSON.parse(r.data as string))
   }
@@ -109,7 +133,7 @@ export class SqliteStorage implements Storage {
 
   // ---- Đồng bộ (không đưa vào Storage để renderer không gọi trực tiếp) ----
 
-  private readonly tables: Record<SyncKind, string> = { note: 'notes', folder: 'folders', reminder: 'reminders', calendar: 'calendars', event: 'events' }
+  private readonly tables: Record<SyncKind, string> = { note: 'notes', folder: 'folders', reminder: 'reminders', calendar: 'calendars', event: 'events', project: 'projects', task: 'tasks' }
 
   /** Truy cập dữ liệu trên máy cho engine đồng bộ. Ghi đúng như đã cho, không đổi updatedAt. */
   syncLocal(): SyncLocal {
@@ -120,6 +144,8 @@ export class SqliteStorage implements Storage {
         note: rows('notes').map((n) => ({ strokes: [], ...n }) as SyncEntity),
         folder: rows('folders'),
         reminder: rows('reminders'),
+        project: rows('projects'),
+        task: rows('tasks'),
         // Chỉ lịch trong app (và sự kiện của chúng) đi qua Drive; lịch Google và iCal tự lấy từ nguồn của chúng.
         calendar: this.db
           .prepare("SELECT data FROM calendars WHERE json_extract(data, '$.kind') = 'local'")

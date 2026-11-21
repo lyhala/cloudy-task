@@ -1,10 +1,10 @@
-// Tìm kiếm toàn cục trên note, reminder và sự kiện. Không phụ thuộc Electron hay giao diện.
+// Tìm kiếm toàn cục trên note, reminder, task và sự kiện. Không phụ thuộc Electron hay giao diện.
 // Nét vẽ (strokes) không nằm trong phạm vi tìm.
 
 import type { CalEvent } from './calendar'
-import { displayTitle, type Note, type Reminder } from './types'
+import { displayTitle, type Note, type Reminder, type Task } from './types'
 
-export type SearchKind = 'note' | 'reminder' | 'event'
+export type SearchKind = 'note' | 'reminder' | 'event' | 'task'
 
 export interface SearchHit {
   kind: SearchKind
@@ -45,6 +45,7 @@ export interface SearchInput {
   notes: Note[]
   reminders: Reminder[]
   events: CalEvent[]
+  tasks?: Task[]
 }
 
 export function search(input: SearchInput, query: string, kinds: ReadonlySet<SearchKind>, limit = 50): SearchHit[] {
@@ -69,6 +70,15 @@ export function search(input: SearchInput, query: string, kinds: ReadonlySet<Sea
       if (matches(`${r.title} ${r.notes} ${r.link}`)) {
         const when = [r.date, r.time].filter(Boolean).join(' ')
         hits.push({ kind: 'reminder', id: r.id, title: r.title, snippet: [r.done ? 'Đã xong' : '', when].filter(Boolean).join(' · '), at: r.updatedAt })
+      }
+    }
+  }
+  if (kinds.has('task')) {
+    for (const t of input.tasks ?? []) {
+      if (t.deletedAt) continue
+      if (matches(`${t.title} ${t.notes}`)) {
+        const when = [t.start, t.end].filter(Boolean).join(' → ')
+        hits.push({ kind: 'task', id: t.id, title: t.title, snippet: [t.archivedAt ? 'Archived' : t.status, when].filter(Boolean).join(' · '), at: t.updatedAt })
       }
     }
   }

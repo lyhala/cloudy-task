@@ -10,10 +10,13 @@ import {
   type AppNotification,
   type Folder,
   type Note,
+  type Project,
   type Reminder,
   type Settings,
+  type Task,
   type ThemeMode
 } from '@core/types'
+import { childrenOf, isOverdue, topLevel } from '@core/tasks'
 import { bucketOf, dateStr, isDoneNow, snooze, toggleDone } from '@core/reminders'
 import type { DesktopSettings, Shortcuts } from '../desktop-shared/types'
 import { NavIcon } from './Icons'
@@ -31,6 +34,8 @@ import { BackupError, buildBackup, parseBackup, planImport } from '@core/backup'
 import type { SearchHit } from '@core/search'
 import { NoteBadge, NotePaper } from './NotePaper'
 import { MyDay, ReminderForm, RemindersView, type RowActions } from './RemindersView'
+import { ProjectsView } from './ProjectsView'
+import { TasksView } from './TasksView'
 import { useNow } from './useNow'
 import { applyTheme, isDarkMode, normalizeSettings, themeBase } from './theme'
 
@@ -47,7 +52,7 @@ const fold = (t: string) =>
 
 const storage = window.api.storage
 
-type Section = 'myday' | 'note' | 'reminder' | 'calendar' | 'notif' | 'settings'
+type Section = 'myday' | 'note' | 'task' | 'project' | 'reminder' | 'calendar' | 'notif' | 'settings'
 
 export function App({ compactStart = false }: { compactStart?: boolean }) {
   const [notes, setNotes] = useState<Note[]>([])
@@ -58,6 +63,9 @@ export function App({ compactStart = false }: { compactStart?: boolean }) {
   const [section, setSection] = useState<Section>('myday')
   const [compact, setCompact] = useState(compactStart)
   const [reminders, setReminders] = useState<Reminder[]>([])
+  const [projects, setProjects] = useState<Project[]>([])
+  const [tasks, setTasks] = useState<Task[]>([])
+  const [focusTask, setFocusTask] = useState<string | null>(null)
   const [notifs, setNotifs] = useState<AppNotification[]>([])
   const [showProfile, setShowProfile] = useState(false)
   const [calendars, setCalendars] = useState<CalendarSource[]>([])
@@ -76,8 +84,10 @@ export function App({ compactStart = false }: { compactStart?: boolean }) {
   latest.current = notes
 
   useEffect(() => {
-    void Promise.all([storage.listNotes(), storage.listFolders(), storage.getSettings(), storage.listReminders(), storage.listNotifications(), storage.listCalendars(), storage.listEvents()]).then(
-      ([n, f, s, r, nf, cals, evs]) => {
+    void Promise.all([storage.listNotes(), storage.listFolders(), storage.getSettings(), storage.listReminders(), storage.listNotifications(), storage.listCalendars(), storage.listEvents(), storage.listProjects(), storage.listTasks()]).then(
+      ([n, f, s, r, nf, cals, evs, pj, tk]) => {
+        setProjects(pj)
+        setTasks(tk)
         setNotes(n)
         setFolders(f.filter((x) => !x.deletedAt))
         const fixed = normalizeSettings(s)
@@ -122,12 +132,14 @@ export function App({ compactStart = false }: { compactStart?: boolean }) {
         timers.current.clear()
         void (async () => {
           await Promise.all(pending)
-          const [n, f, r, c, e] = await Promise.all([storage.listNotes(), storage.listFolders(), storage.listReminders(), storage.listCalendars(), storage.listEvents()])
+          const [n, f, r, c, e, pj, tk] = await Promise.all([storage.listNotes(), storage.listFolders(), storage.listReminders(), storage.listCalendars(), storage.listEvents(), storage.listProjects(), storage.listTasks()])
           setNotes(n)
           setFolders(f.filter((x) => !x.deletedAt))
           setReminders(r)
           setCalendars(c)
           setEvents(e)
+          setProjects(pj)
+          setTasks(tk)
         })()
       }),
     []
@@ -248,8 +260,8 @@ export function App({ compactStart = false }: { compactStart?: boolean }) {
   }, [])
 
   const exportData = async () => {
-    const data = buildBackup({ notes, folders, reminders, calendars, events, settings })
-    const name = `note-task-backup-${dateStr(new Date())}.json`
+    const data = buildBackup({ notes, folders, reminders, projects, tasks, calendars, events, settings })
+    const name = `cloudy-task-backup-${dateStr(new Date())}.json`
     const path = await window.api.desktop.saveFile(name, JSON.stringify(data, null, 2))
     if (path) flash('Đã xuất dữ liệu')
   }
@@ -257,19 +269,23 @@ export function App({ compactStart = false }: { compactStart?: boolean }) {
     const text = await window.api.desktop.openTextFile()
     if (text === null) return
     try {
-      const plan = planImport(parseBackup(text), { notes, folders, reminders, calendars, events })
+      const plan = planImport(parseBackup(text), { notes, folders, reminders, projects, tasks, calendars, events })
       for (const n of plan.notes) await storage.saveNote(n)
       for (const f of plan.folders) await storage.saveFolder(f)
       for (const r of plan.reminders) await storage.saveReminder(r)
+      for (const p of plan.projects) await storage.saveProject(p)
+      for (const t of plan.tasks) await storage.saveTask(t)
       for (const c of plan.calendars) await storage.saveCalendar(c)
       for (const e of plan.events) await storage.saveEvent(e)
-      const [n, f, r, c, e] = await Promise.all([storage.listNotes(), storage.listFolders(), storage.listReminders(), storage.listCalendars(), storage.listEvents()])
+      const [n, f, r, c, e, pj, tk] = await Promise.all([storage.listNotes(), storage.listFolders(), storage.listReminders(), storage.listCalendars(), storage.listEvents(), storage.listProjects(), storage.listTasks()])
       setNotes(n)
       setFolders(f.filter((x) => !x.deletedAt))
       setReminders(r)
       setCalendars(c)
       setEvents(e)
-      flash(`Đã nhập ${plan.notes.length} note, ${plan.reminders.length} reminder, ${plan.events.length} sự kiện`)
+      setProjects(pj)
+      setTasks(tk)
+      flash(`Đã nhập ${plan.notes.length} note, ${plan.tasks.length} task, ${plan.projects.length} project, ${plan.reminders.length} reminder, ${plan.events.length} sự kiện`)
     } catch (err) {
       flash(err instanceof BackupError ? err.message : 'Không nhập được file này')
     }
@@ -278,7 +294,11 @@ export function App({ compactStart = false }: { compactStart?: boolean }) {
   const pickHit = (h: SearchHit) => {
     setSearchOpen(false)
     if (h.kind === 'note') openNote(h.id)
-    else if (h.kind === 'reminder') {
+    else if (h.kind === 'task') {
+      setSection('task')
+      setFocusTask(null)
+      window.setTimeout(() => setFocusTask(h.id), 0)
+    } else if (h.kind === 'reminder') {
       const r = reminders.find((x) => x.id === h.id)
       if (r) {
         setSection('reminder')
@@ -351,6 +371,41 @@ export function App({ compactStart = false }: { compactStart?: boolean }) {
     }
   }
 
+  // ---- Task và Project ----
+  const saveTask = (t: Task) => {
+    setTasks((all) => (all.some((x) => x.id === t.id) ? all.map((x) => (x.id === t.id ? t : x)) : [...all, t]))
+    void storage.saveTask(t)
+  }
+  const saveProject = (p: Project) => {
+    setProjects((all) => (all.some((x) => x.id === p.id) ? all.map((x) => (x.id === p.id ? p : x)) : [...all, p]))
+    void storage.saveProject(p)
+  }
+  const deleteTask = (t: Task) => {
+    const kids = childrenOf(tasks, t.id)
+    setConfirmReq({
+      title: 'Xóa task?',
+      message: kids.length ? `"${t.title}" và ${kids.length} task con sẽ bị xóa.` : `"${t.title}" sẽ bị xóa.`,
+      confirmLabel: 'Xóa',
+      danger: true,
+      onConfirm: () => {
+        const at = Date.now()
+        for (const x of [t, ...kids]) saveTask({ ...x, deletedAt: at, updatedAt: at })
+      }
+    })
+  }
+  const deleteProject = (p: Project) =>
+    setConfirmReq({
+      title: 'Xóa project?',
+      message: `Project "${p.name}" sẽ bị xóa. Các task bên trong không mất, chúng chuyển về "Không có project".`,
+      confirmLabel: 'Xóa project',
+      danger: true,
+      onConfirm: () => {
+        const at = Date.now()
+        for (const x of tasks.filter((k) => !k.deletedAt && k.projectId === p.id)) saveTask({ ...x, projectId: null, updatedAt: at })
+        saveProject({ ...p, deletedAt: at, updatedAt: at })
+      }
+    })
+
   // ---- Lịch ----
   const isGoogle = (e: CalEvent) => calendars.find((c) => c.id === e.calendarId)?.kind === 'google'
   const saveEvent = (e: CalEvent) => {
@@ -397,6 +452,12 @@ export function App({ compactStart = false }: { compactStart?: boolean }) {
   const openFromNotification = (n: AppNotification) => {
     setNotifs((all) => all.map((x) => (x.id === n.id ? { ...x, readAt: x.readAt ?? Date.now() } : x)))
     if (!n.readAt) void storage.saveNotification({ ...n, readAt: Date.now() })
+    if (n.kind === 'task') {
+      setSection('task')
+      setFocusTask(null)
+      window.setTimeout(() => setFocusTask(n.reminderId), 0)
+      return
+    }
     setSection(n.kind === 'event' ? 'calendar' : 'reminder')
   }
   const readAllNotifications = () => {
@@ -485,6 +546,7 @@ export function App({ compactStart = false }: { compactStart?: boolean }) {
   const unread = notifs.filter((n) => !n.readAt).length
   const overdueCount = reminders.filter((r) => !r.deletedAt && bucketOf(r, now) === 'overdue').length
   const todayStr = dateStr(new Date(now))
+  const overdueTasks = topLevel(tasks).filter((t) => t.archivedAt === null && isOverdue(t, todayStr)).length
 
   return (
     <div className={`shell ${compact ? 'compact' : ''}`}>
@@ -552,6 +614,15 @@ export function App({ compactStart = false }: { compactStart?: boolean }) {
           </div>
         </div>
         )}
+          <button className={`nav-item ${section === 'task' ? 'active' : ''}`} onClick={() => setSection('task')}>
+            <NavIcon kind="task" />
+            <span>Task</span>
+            {overdueTasks > 0 && <span className="count warn">{overdueTasks}</span>}
+          </button>
+          <button className={`nav-item ${section === 'project' ? 'active' : ''}`} onClick={() => setSection('project')}>
+            <NavIcon kind="project" />
+            <span>Project</span>
+          </button>
           <button className={`nav-item ${section === 'reminder' ? 'active' : ''}`} onClick={() => setSection('reminder')}>
             <NavIcon kind="reminder" />
             <span>Reminder</span>
@@ -616,17 +687,60 @@ export function App({ compactStart = false }: { compactStart?: boolean }) {
               <SyncCard />
               <div className="theme-panel sync-card">
                 <b>Dữ liệu của bạn</b>
-                <p className="muted">Xuất toàn bộ note, folder, reminder và lịch trong app ra một file JSON để lưu trữ. Nhập file sẽ gộp vào dữ liệu hiện có, không xóa gì: mục nào mới hơn thì được giữ.</p>
+                <p className="muted">Xuất toàn bộ note, folder, task, project, reminder và lịch trong app ra một file JSON để lưu trữ. Nhập file sẽ gộp vào dữ liệu hiện có, không xóa gì: mục nào mới hơn thì được giữ.</p>
                 <div className="pop-actions">
                   <button onClick={() => void exportData()}>Xuất dữ liệu</button>
                   <button onClick={() => void importData()}>Nhập dữ liệu</button>
                 </div>
+              </div>
+              <div className="theme-panel sync-card">
+                <b>Task</b>
+                <label>
+                  Task đã xong (Archived) tự xóa sau
+                  <span className="inline-num">
+                    <input
+                      type="number"
+                      min={0}
+                      max={120}
+                      value={settings.archiveMonths ?? 24}
+                      onChange={(e) => updateSettings({ archiveMonths: Math.min(120, Math.max(0, Math.floor(Number(e.target.value) || 0))) })}
+                    />
+                    tháng
+                  </span>
+                </label>
+                <small className="muted">Điền 0 để không bao giờ tự xóa. Task bị xóa đi qua thùng rác 30 ngày.</small>
+                {(settings.archiveMonths ?? 24) > 0 && (settings.archiveMonths ?? 24) < 12 && (
+                  <small className="bad">Ngắn hơn 12 tháng: Report theo kỳ dài sẽ thiếu task đã xong.</small>
+                )}
               </div>
               <ThemePanel settings={settings} onChange={updateSettings} />
               <DesktopPanel />
               <VersionLine />
             </div>
           </div>
+        )}
+        {section === 'task' && (
+          <div className="page">
+            <header className="main-head">
+              <h1>Task</h1>
+            </header>
+            <div className="page-body">
+              <TasksView tasks={tasks} projects={projects} today={todayStr} archiveMonths={settings.archiveMonths ?? 24} focusId={focusTask} onSave={saveTask} onDelete={deleteTask} />
+            </div>
+          </div>
+        )}
+        {section === 'project' && (
+          <ProjectsView
+            projects={projects}
+            tasks={tasks}
+            today={todayStr}
+            archiveMonths={settings.archiveMonths ?? 24}
+            focusId={focusTask}
+            onSaveProject={saveProject}
+            onDeleteProject={deleteProject}
+            onSaveTask={saveTask}
+            onDeleteTask={deleteTask}
+          />
         )}
         {section === 'reminder' && <RemindersView reminders={reminders} now={now} a={rowActions} onNew={() => setForm({ reminder: null })} />}
         {section === 'note' && (
@@ -720,7 +834,7 @@ export function App({ compactStart = false }: { compactStart?: boolean }) {
           }}
         />
       )}
-      {searchOpen && <SearchDialog data={{ notes, reminders, events }} onPick={pickHit} onClose={() => setSearchOpen(false)} />}
+      {searchOpen && <SearchDialog data={{ notes, reminders, events, tasks }} onPick={pickHit} onClose={() => setSearchOpen(false)} />}
       {confirmReq && <ConfirmDialog req={confirmReq} onClose={() => setConfirmReq(null)} />}
       {eventDraft && (
         <EventDialog

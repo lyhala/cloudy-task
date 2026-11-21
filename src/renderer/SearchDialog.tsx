@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { search, type SearchHit, type SearchInput, type SearchKind } from '@core/search'
 
-const KIND_LABEL: Record<SearchKind, string> = { note: 'Note', reminder: 'Reminder', event: 'Sự kiện' }
-const KIND_ICON: Record<SearchKind, string> = { note: '📝', reminder: '⏰', event: '📅' }
+const KIND_LABEL: Record<SearchKind, string> = { note: 'Note', reminder: 'Reminder', task: 'Task', event: 'Sự kiện' }
+const KIND_ICON: Record<SearchKind, string> = { note: '📝', reminder: '⏰', task: '✅', event: '📅' }
 
 interface Props {
   data: SearchInput
@@ -13,7 +13,7 @@ interface Props {
 /** Tìm kiếm toàn cục (Ctrl/Cmd+K): note, reminder, sự kiện; lọc theo loại; gõ không dấu vẫn tìm được. */
 export function SearchDialog({ data, onPick, onClose }: Props) {
   const [q, setQ] = useState('')
-  const [kinds, setKinds] = useState<Set<SearchKind>>(new Set(['note', 'reminder', 'event']))
+  const [kinds, setKinds] = useState<Set<SearchKind>>(new Set(['note', 'reminder', 'task', 'event']))
   const [sel, setSel] = useState(0)
   const input = useRef<HTMLInputElement>(null)
 
@@ -43,7 +43,7 @@ export function SearchDialog({ data, onPick, onClose }: Props) {
   return (
     <div className="modal search-modal" onMouseDown={(e) => e.target === e.currentTarget && onClose()} onKeyDown={onKey}>
       <div className="dialog search-dialog" role="dialog" aria-label="Tìm kiếm">
-        <input ref={input} className="search-input" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Tìm note, reminder, sự kiện… (gõ không dấu cũng được)" />
+        <input ref={input} className="search-input" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Tìm note, reminder, task, sự kiện… (gõ không dấu cũng được)" />
         <div className="search-kinds">
           {(Object.keys(KIND_LABEL) as SearchKind[]).map((k) => (
             <button key={k} className={kinds.has(k) ? 'scope-chip on' : 'scope-chip'} onClick={() => toggle(k)}>

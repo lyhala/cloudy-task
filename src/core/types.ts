@@ -109,9 +109,11 @@ export interface Settings {
   eventReminderMinutes: number
   /** 'preset:N' (avatar mẫu) hoặc data URL ảnh người dùng tải lên. */
   avatar: string
+  /** Task đã archived tự xóa sau bấy nhiêu tháng (0 = không bao giờ xóa). */
+  archiveMonths: number
 }
 
-export const DEFAULT_SETTINGS: Settings = { themeMode: 'system', themeColor: 'blue', customBg: null, customAccent: null, upcomingDays: 3, profileName: '', avatar: 'preset:0', eventReminderMinutes: 15 }
+export const DEFAULT_SETTINGS: Settings = { themeMode: 'system', themeColor: 'blue', customBg: null, customAccent: null, upcomingDays: 3, profileName: '', avatar: 'preset:0', eventReminderMinutes: 15, archiveMonths: 24 }
 
 export const PAPER_COLORS = ['#ffffff', '#fff3b0', '#ffd6d6', '#d4f1d4', '#d6e8ff', '#ead6ff']
 
@@ -260,7 +262,87 @@ export function newReminder(partial: Partial<Reminder> = {}): Reminder {
   }
 }
 
-export type NotifyKind = 'due' | 'daily' | 'overdue' | 'missed' | 'event'
+export type NotifyKind = 'due' | 'daily' | 'overdue' | 'missed' | 'event' | 'task'
+
+// ---- Project và Task ----
+
+export type TaskStatus = 'pending' | 'in_progress' | 'done' | 'redo'
+
+export const TASK_STATUSES: { id: TaskStatus; label: string }[] = [
+  { id: 'pending', label: 'Pending' },
+  { id: 'in_progress', label: 'In progress' },
+  { id: 'redo', label: 'Re-do' },
+  { id: 'done', label: 'Done' }
+]
+
+export const PROJECT_COLORS = ['#2f7de1', '#e8708f', '#43a581', '#e8a60c', '#9b7fe0', '#1fa3d1', '#e8590c', '#7d8590']
+
+export interface Project {
+  v: number
+  id: string
+  name: string
+  color: string
+  description: string
+  /** Project đã đóng: không còn trong danh sách chọn khi tạo task mới, task cũ giữ nguyên. */
+  closed: boolean
+  createdAt: number
+  updatedAt: number
+  deletedAt: number | null
+}
+
+export interface Task {
+  v: number
+  id: string
+  title: string
+  notes: string
+  /** Project của task; null = không thuộc project nào. */
+  projectId: string | null
+  /** Task con: id của task lớn (chỉ một cấp). */
+  parentId: string | null
+  /** Ngày bắt đầu và kết thúc 'YYYY-MM-DD'; đều tùy chọn. */
+  start: string | null
+  end: string | null
+  status: TaskStatus
+  /** Nhắc mỗi sáng 9:00 trong khoảng từ ngày bắt đầu đến ngày kết thúc (thiếu mốc thì không giới hạn phía đó). */
+  remindDaily: boolean
+  /** Nhắc trước ngày kết thúc bấy nhiêu ngày, lúc 9:00; null = không nhắc. */
+  remindBeforeDays: number | null
+  /** Lúc task xong (status done). */
+  doneAt: number | null
+  /** Lúc chuyển sang Archived (xong thì tự vào Archived); null = chưa archived. */
+  archivedAt: number | null
+  createdAt: number
+  updatedAt: number
+  deletedAt: number | null
+}
+
+export function newProject(partial: Partial<Project> = {}): Project {
+  const now = Date.now()
+  return { v: FORMAT_VERSION, id: newId(), name: '', color: PROJECT_COLORS[0], description: '', closed: false, createdAt: now, updatedAt: now, deletedAt: null, ...partial }
+}
+
+export function newTask(partial: Partial<Task> = {}): Task {
+  const now = Date.now()
+  return {
+    v: FORMAT_VERSION,
+    id: newId(),
+    title: '',
+    notes: '',
+    projectId: null,
+    parentId: null,
+    start: null,
+    end: null,
+    status: 'pending',
+    remindDaily: false,
+    remindBeforeDays: null,
+    doneAt: null,
+    archivedAt: null,
+    createdAt: now,
+    updatedAt: now,
+    deletedAt: null,
+    ...partial
+  }
+}
 
 /** Một mục trong trung tâm thông báo của app. */
 export interface AppNotification {

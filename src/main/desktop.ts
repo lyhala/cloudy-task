@@ -3,8 +3,9 @@ import { join } from 'node:path'
 import { app, BrowserWindow, globalShortcut, ipcMain, Menu, nativeImage, Notification, screen, Tray, type WebContents } from 'electron'
 import { makeEventNotification, occurrencesBetween } from '@core/calendar'
 import type { SqliteStorage } from './sqlite-storage'
-import { describeDue, inQuietHours, makeNotification, MISSED_AFTER_MS, NOTIFY_LABELS, planFire } from '@core/reminders'
-import { newNote, NOTE_SIZES, type NotifyKind, type Reminder } from '@core/types'
+import { dateStr, describeDue, inQuietHours, makeNotification, MISSED_AFTER_MS, NOTIFY_LABELS, planFire } from '@core/reminders'
+import { describeTaskAlert, taskAlertsFor } from '@core/tasks'
+import { FORMAT_VERSION, newId, newNote, NOTE_SIZES, type AppNotification, type NotifyKind, type Reminder } from '@core/types'
 import {
   DEFAULT_DESKTOP_SETTINGS,
   type DesktopSettings,
@@ -265,6 +266,26 @@ export function setupDesktop(deps: Deps): { quit: () => void } {
     }
   }
 
+  /**
+   * Nhắc task (nhắc hằng ngày, nhắc trước n ngày) từ 9:00 sáng, mỗi mốc một lần (khóa chống trùng lưu cùng nơi với nhắc sự kiện).
+   * Chỉ có thông báo trong app và thông báo hệ điều hành, không bật sticky nổi.
+   */
+  async function checkTaskAlerts(now: number, quiet: boolean): Promise<void> {
+    const d = new Date(now)
+    if (d.getHours() < 9) return
+    const today = dateStr(d)
+    for (const t of await deps.storage.listTasks()) {
+      for (const a of taskAlertsFor(t, today)) {
+        if (deps.storage.hasEventAlert(a.key)) continue
+        deps.storage.markEventAlert(a.key, now)
+        const n: AppNotification = { v: FORMAT_VERSION, id: newId(), reminderId: t.id, kind: 'task', title: t.title, at: now, readAt: null }
+        await deps.storage.saveNotification(n)
+        deps.broadcast('notification:added', n)
+        if (!quiet) osNotify(`Task: ${t.title}`, describeTaskAlert(a))
+      }
+    }
+  }
+
   let ticking = false
   async function tick(): Promise<void> {
     if (ticking) return
@@ -302,6 +323,7 @@ export function setupDesktop(deps: Deps): { quit: () => void } {
         deps.broadcast('reminder:changed', next)
       }
       await checkEventAlerts(now, quiet)
+      await checkTaskAlerts(now, quiet)
       if (missedCount) osNotify('Reminder đã lỡ', `Có ${missedCount} nhắc việc đến hạn lúc app đóng. Mở app để xem.`)
     } finally {
       ticking = false

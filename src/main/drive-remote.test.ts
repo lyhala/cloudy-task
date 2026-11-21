@@ -88,14 +88,16 @@ class FakeDrive {
 }
 
 class MemLocal implements SyncLocal {
-  data: Record<SyncKind, Map<string, SyncEntity>> = { note: new Map(), folder: new Map(), reminder: new Map(), calendar: new Map(), event: new Map() }
+  data: Record<SyncKind, Map<string, SyncEntity>> = { note: new Map(), folder: new Map(), reminder: new Map(), calendar: new Map(), event: new Map(), project: new Map(), task: new Map() }
   async listAll() {
     return {
       note: [...this.data.note.values()],
       folder: [...this.data.folder.values()],
       reminder: [...this.data.reminder.values()],
       calendar: [...this.data.calendar.values()],
-      event: [...this.data.event.values()]
+      event: [...this.data.event.values()],
+      project: [...this.data.project.values()],
+      task: [...this.data.task.values()]
     }
   }
   async put(kind: SyncKind, e: SyncEntity) {
