@@ -35,6 +35,7 @@ import type { SearchHit } from '@core/search'
 import { NoteBadge, NotePaper } from './NotePaper'
 import { MyDay, ReminderForm, RemindersView, type RowActions } from './RemindersView'
 import { ProjectsView } from './ProjectsView'
+import { ReportView } from './ReportView'
 import { TasksView } from './TasksView'
 import { useNow } from './useNow'
 import { applyTheme, isDarkMode, normalizeSettings, themeBase } from './theme'
@@ -52,7 +53,7 @@ const fold = (t: string) =>
 
 const storage = window.api.storage
 
-type Section = 'myday' | 'note' | 'task' | 'project' | 'reminder' | 'calendar' | 'notif' | 'settings'
+type Section = 'myday' | 'note' | 'task' | 'project' | 'report' | 'reminder' | 'calendar' | 'notif' | 'settings'
 
 export function App({ compactStart = false }: { compactStart?: boolean }) {
   const [notes, setNotes] = useState<Note[]>([])
@@ -614,14 +615,18 @@ export function App({ compactStart = false }: { compactStart?: boolean }) {
           </div>
         </div>
         )}
+          <button className={`nav-item ${section === 'project' ? 'active' : ''}`} onClick={() => setSection('project')}>
+            <NavIcon kind="project" />
+            <span>Project</span>
+          </button>
           <button className={`nav-item ${section === 'task' ? 'active' : ''}`} onClick={() => setSection('task')}>
             <NavIcon kind="task" />
             <span>Task</span>
             {overdueTasks > 0 && <span className="count warn">{overdueTasks}</span>}
           </button>
-          <button className={`nav-item ${section === 'project' ? 'active' : ''}`} onClick={() => setSection('project')}>
-            <NavIcon kind="project" />
-            <span>Project</span>
+          <button className={`nav-item ${section === 'report' ? 'active' : ''}`} onClick={() => setSection('report')}>
+            <NavIcon kind="report" />
+            <span>Report</span>
           </button>
           <button className={`nav-item ${section === 'reminder' ? 'active' : ''}`} onClick={() => setSection('reminder')}>
             <NavIcon kind="reminder" />
@@ -666,6 +671,13 @@ export function App({ compactStart = false }: { compactStart?: boolean }) {
         )}
         {section === 'calendar' && (
           <CalendarView
+            tasks={tasks}
+            projects={projects}
+            onOpenTask={(id) => {
+              setSection('task')
+              setFocusTask(null)
+              window.setTimeout(() => setFocusTask(id), 0)
+            }}
             calendars={calendars}
             events={events}
             reminders={withoutPushedDuplicates(reminders, events, calendars)}
@@ -728,6 +740,18 @@ export function App({ compactStart = false }: { compactStart?: boolean }) {
               <TasksView tasks={tasks} projects={projects} today={todayStr} archiveMonths={settings.archiveMonths ?? 24} focusId={focusTask} onSave={saveTask} onDelete={deleteTask} />
             </div>
           </div>
+        )}
+        {section === 'report' && (
+          <ReportView
+            tasks={tasks}
+            projects={projects}
+            now={now}
+            onOpenTask={(id) => {
+              setSection('task')
+              setFocusTask(null)
+              window.setTimeout(() => setFocusTask(id), 0)
+            }}
+          />
         )}
         {section === 'project' && (
           <ProjectsView

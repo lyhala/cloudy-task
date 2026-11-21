@@ -105,3 +105,14 @@ export function describeTaskAlert(a: TaskAlert): string {
   if (a.daysLeft > 0) return `Còn ${a.daysLeft} ngày đến hạn`
   return `Đã quá hạn ${-a.daysLeft} ngày`
 }
+
+/**
+ * Khoảng ngày task chiếm trên lịch ('YYYY-MM-DD', gồm cả hai đầu); null nếu task không có ngày nào.
+ * Có cả ngày bắt đầu và kết thúc: kéo dài nhiều ngày. Chỉ có một mốc: đúng ngày đó.
+ */
+export function taskSpan(t: Task): [string, string] | null {
+  if (t.start && t.end) return [t.start, t.end < t.start ? t.start : t.end]
+  if (t.end) return [t.end, t.end]
+  if (t.start) return [t.start, t.start]
+  return null
+}

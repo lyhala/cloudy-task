@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { buildBackup, parseBackup, planImport } from './backup'
 import { search } from './search'
-import { childrenOf, compareActive, countByStatus, describeTaskAlert, expiredArchived, isOverdue, progressOf, setStatus, taskAlertsFor, toggleTask } from './tasks'
+import { childrenOf, compareActive, countByStatus, describeTaskAlert, expiredArchived, isOverdue, progressOf, setStatus, taskAlertsFor, taskSpan, toggleTask } from './tasks'
 import { DEFAULT_SETTINGS, newProject, newTask } from './types'
 
 const t = (name: string, fn: () => void) => (fn(), console.log('ok   ', name))
@@ -130,4 +130,12 @@ t('tìm kiếm thấy task theo tiêu đề và ghi chú, không dấu', () => {
   assert.equal(hits[0].kind, 'task')
   assert.equal(search({ notes: [], reminders: [], events: [], tasks }, 'nguyen', new Set(['task'])).length, 1)
 })
-console.log('11 test task đạt')
+t('khoảng ngày của task trên lịch', () => {
+  assert.deepEqual(taskSpan(newTask({ start: '2026-11-20', end: '2026-11-23' })), ['2026-11-20', '2026-11-23'])
+  assert.deepEqual(taskSpan(newTask({ end: '2026-11-23' })), ['2026-11-23', '2026-11-23'])
+  assert.deepEqual(taskSpan(newTask({ start: '2026-11-20' })), ['2026-11-20', '2026-11-20'])
+  assert.equal(taskSpan(newTask()), null)
+  // kết thúc trước bắt đầu (nhập sai): thu về một ngày, không vẽ ngược
+  assert.deepEqual(taskSpan(newTask({ start: '2026-11-20', end: '2026-11-10' })), ['2026-11-20', '2026-11-20'])
+})
+console.log('12 test task đạt')

@@ -71,7 +71,7 @@ Tự xóa Archived:
 
 ## Report
 
-- Chọn kỳ: từng tháng, cụm 3 tháng, cụm 6 tháng, 1 năm (có mũi tên chuyển kỳ trước, sau).
+- Chọn kỳ: từng tháng, cụm 3 tháng, cụm 6 tháng, 1 năm (có mũi tên chuyển kỳ trước, sau). Cụm tính theo lịch: 3 tháng là quý (T1–T3, T4–T6, T7–T9, T10–T12), 6 tháng là nửa năm (T1–T6, T7–T12), 1 năm là cả năm dương lịch.
 - Biểu đồ tròn: tỷ lệ task theo project (gồm nhóm "Không có project").
 - Biểu đồ cột: số task theo trạng thái (Done, In progress, Pending, Re-do).
 - Danh sách task của kỳ nằm dưới biểu đồ. Bấm một phần biểu đồ thì lọc danh sách tương ứng.
@@ -93,7 +93,7 @@ Tự xóa Archived:
 
 ## Lịch
 
-- Lịch trong app hiện: sự kiện Google (nếu kết nối), reminder có giờ, task có ngày. Task nhiều ngày vẽ thành thanh dài, chấm màu theo project, task đã Done mờ đi.
+- Lịch trong app hiện: sự kiện Google (nếu kết nối), reminder có giờ, task có ngày. Task nhiều ngày vẽ thành thanh dài qua các ngày, màu theo project, task đã Done gạch và mờ đi. Có ô tick "Task" ở cột trái của lịch để bật tắt. Bấm vào task thì mở task trong mục Task.
 - Bỏ chế độ iCal khỏi giao diện (đã ẩn ở bản cũ). Không ghi task lên Google.
 - Với Gmail cá nhân: kết nối Calendar bằng OAuth bình thường, thêm mail vào Test users cho tới khi chuyển In production.
 

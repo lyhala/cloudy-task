@@ -99,7 +99,15 @@ export function ProjectsView(props: Props) {
     <div className="page">
       <header className="main-head">
         <h1>Project</h1>
-        <button className="primary" onClick={() => setCreating((v) => !v)}>
+        <button
+          className="primary"
+          onClick={() => {
+            // Project mới tự lấy màu chưa dùng, để các project khác màu nhau trên biểu đồ và lịch.
+            const used = new Set(projects.filter((p) => !p.deletedAt).map((p) => p.color))
+            setColor(PROJECT_COLORS.find((c) => !used.has(c)) ?? PROJECT_COLORS[projects.length % PROJECT_COLORS.length])
+            setCreating((v) => !v)
+          }}
+        >
           ＋ Project mới
         </button>
       </header>

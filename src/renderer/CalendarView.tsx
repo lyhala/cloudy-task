@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { layoutDay, occurrencesBetween, touchesDay, wallToMs, type CalEvent, type CalendarSource, type Occurrence } from '@core/calendar'
 import { addDays, addMonths, dateStr, isNudgeOnly, occurrenceDatesBetween, parseDate } from '@core/reminders'
-import type { Reminder } from '@core/types'
+import type { Project, Reminder, Task } from '@core/types'
+import { taskSpan, topLevel } from '@core/tasks'
 
 type View = 'day' | 'week' | 'month'
 
@@ -20,7 +21,16 @@ interface RemItem {
   end: number
 }
 
+interface TaskItem {
+  t: Task
+  span: [string, string]
+  color: string
+}
+
 interface Props {
+  tasks: Task[]
+  projects: Project[]
+  onOpenTask: (id: string) => void
   calendars: CalendarSource[]
   events: CalEvent[]
   reminders: Reminder[]
@@ -33,7 +43,7 @@ interface Props {
   sidebarExtra?: React.ReactNode
 }
 
-export function CalendarView({ calendars, events, reminders, now, onNewEvent, onOpenEvent, onOpenReminder, onToggleCalendar, sidebarExtra }: Props) {
+export function CalendarView({ tasks, projects, onOpenTask, calendars, events, reminders, now, onNewEvent, onOpenEvent, onOpenReminder, onToggleCalendar, sidebarExtra }: Props) {
   const [view, setView] = useState<View>(() => {
     try {
       const v = localStorage.getItem(VIEW_KEY)
@@ -43,6 +53,13 @@ export function CalendarView({ calendars, events, reminders, now, onNewEvent, on
     }
   })
   const [anchor, setAnchor] = useState(() => dateStr(new Date(now)))
+  const [showTasks, setShowTasks] = useState(() => {
+    try {
+      return localStorage.getItem('cloudy-cal-tasks') !== '0'
+    } catch {
+      return true
+    }
+  })
   const today = dateStr(new Date(now))
   const scroller = useRef<HTMLDivElement>(null)
 
@@ -95,6 +112,19 @@ export function CalendarView({ calendars, events, reminders, now, onNewEvent, on
   }, [reminders, days])
 
   const dayOccs = (date: string): Occurrence[] => occs.filter((o) => touchesDay(o, date))
+
+  // Task có ngày cũng hiện trên lịch (chỉ trong app, không ghi lên Google); task nhiều ngày kéo dài qua các ngày.
+  const taskItems = useMemo<TaskItem[]>(() => {
+    if (!showTasks) return []
+    const out: TaskItem[] = []
+    for (const t of topLevel(tasks)) {
+      const span = taskSpan(t)
+      if (!span || span[1] < days[0] || span[0] > days[days.length - 1]) continue
+      out.push({ t, span, color: projects.find((p) => p.id === t.projectId)?.color ?? '#7d8590' })
+    }
+    return out.sort((a, b) => a.span[0].localeCompare(b.span[0]) || a.t.createdAt - b.t.createdAt)
+  }, [tasks, projects, showTasks, days])
+  const tasksOn = (d: string): TaskItem[] => taskItems.filter((x) => x.span[0] <= d && d <= x.span[1])
 
   // Điều hướng
   const shift = (dir: -1 | 1) => {
@@ -157,6 +187,22 @@ export function CalendarView({ calendars, events, reminders, now, onNewEvent, on
       <div className="cal-body">
         <aside className="cal-side">
           <b>Lịch</b>
+          <label className="cal-task-toggle">
+            <input
+              type="checkbox"
+              checked={showTasks}
+              onChange={(e) => {
+                setShowTasks(e.target.checked)
+                try {
+                  localStorage.setItem('cloudy-cal-tasks', e.target.checked ? '1' : '0')
+                } catch {
+                  /* không lưu được thì bỏ qua */
+                }
+              }}
+            />
+            <span className="dot" style={{ background: '#2fa874' }} />
+            <span className="name">Task</span>
+          </label>
           <ul>
             {calendars.map((c) => (
               <li key={c.id}>
@@ -178,6 +224,8 @@ export function CalendarView({ calendars, events, reminders, now, onNewEvent, on
             month={anchor.slice(0, 7)}
             today={today}
             dayOccs={dayOccs}
+            tasksOn={tasksOn}
+            onOpenTask={onOpenTask}
             remItems={remItems}
             colorOf={colorOf}
             onOpenEvent={onOpenEvent}
@@ -198,6 +246,8 @@ export function CalendarView({ calendars, events, reminders, now, onNewEvent, on
             now={now}
             scroller={scroller}
             dayOccs={dayOccs}
+            tasksOn={tasksOn}
+            onOpenTask={onOpenTask}
             remItems={remItems}
             colorOf={colorOf}
             onOpenEvent={onOpenEvent}
@@ -215,10 +265,27 @@ interface GridCommon {
   days: string[]
   today: string
   dayOccs: (date: string) => Occurrence[]
+  tasksOn: (date: string) => TaskItem[]
+  onOpenTask: (id: string) => void
   remItems: RemItem[]
   colorOf: (calendarId: string) => string
   onOpenEvent: (o: Occurrence) => void
   onOpenReminder: (r: Reminder) => void
+}
+
+function TaskChip({ x, date, onOpen }: { x: TaskItem; date: string; onOpen: (id: string) => void }) {
+  const done = x.t.status === 'done'
+  return (
+    <button
+      className={`chip task ${done ? 'done' : ''} ${date > x.span[0] ? 'cl' : ''} ${date < x.span[1] ? 'cr' : ''}`}
+      style={{ ['--c' as string]: x.color }}
+      onClick={(e) => (e.stopPropagation(), onOpen(x.t.id))}
+      title={`Task: ${x.t.title}`}
+    >
+      <i>{done ? '✓' : '☐'}</i>
+      {x.t.title.trim() || '(Chưa đặt tên)'}
+    </button>
+  )
 }
 
 function MonthGrid({
@@ -226,6 +293,8 @@ function MonthGrid({
   month,
   today,
   dayOccs,
+  tasksOn,
+  onOpenTask,
   remItems,
   colorOf,
   onOpenEvent,
@@ -242,6 +311,7 @@ function MonthGrid({
       ))}
       {days.map((d) => {
         const items = [
+          ...tasksOn(d).map((x) => ({ kind: 'task' as const, start: -2, x })),
           ...dayOccs(d).map((o) => ({ kind: 'event' as const, start: o.allDay ? -1 : o.start, o })),
           ...remItems.filter((x) => x.date === d).map((x) => ({ kind: 'rem' as const, start: x.start, x }))
         ].sort((a, b) => a.start - b.start)
@@ -256,7 +326,9 @@ function MonthGrid({
               {Number(d.slice(8))}
             </button>
             {shown.map((it) =>
-              it.kind === 'event' ? (
+              it.kind === 'task' ? (
+                <TaskChip key={it.x.t.id + d} x={it.x} date={d} onOpen={onOpenTask} />
+              ) : it.kind === 'event' ? (
                 <button
                   key={it.o.key + d}
                   className={`chip ${it.o.allDay ? 'allday' : ''}`}
@@ -292,6 +364,8 @@ function TimeGrid({
   now,
   scroller,
   dayOccs,
+  tasksOn,
+  onOpenTask,
   remItems,
   colorOf,
   onOpenEvent,
@@ -323,6 +397,9 @@ function TimeGrid({
         <span className="lbl">Cả ngày</span>
         {days.map((d) => (
           <div key={d} className="ad" onClick={() => onNewAllDay(d)}>
+            {tasksOn(d).map((x) => (
+              <TaskChip key={x.t.id + d} x={x} date={d} onOpen={onOpenTask} />
+            ))}
             {dayOccs(d)
               .filter((o) => o.allDay)
               .map((o) => (

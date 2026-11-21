@@ -2,7 +2,7 @@
 import clayAvatar from './assets/avatar-clay.webp'
 import clayAvatarPurple from './assets/avatar-clay-purple.webp'
 
-export type NavIconKind = 'myday' | 'note' | 'task' | 'project' | 'reminder' | 'calendar' | 'bell' | 'settings'
+export type NavIconKind = 'myday' | 'note' | 'task' | 'project' | 'report' | 'reminder' | 'calendar' | 'bell' | 'settings'
 
 const SUN_RAYS = [0, 45, 90, 135, 180, 225, 270, 315]
 const GEAR_TEETH = [0, 45, 90, 135]
@@ -66,6 +66,19 @@ const glyphs: Record<NavIconKind, React.ReactNode> = {
       </defs>
       <rect x="5" y="4" width="22" height="24" rx="6" fill="url(#ni-task)" />
       <path d="M10.5 16.5 L14.5 20.5 L22 12" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+    </>
+  ),
+  report: (
+    <>
+      <defs>
+        <linearGradient id="ni-rep" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#ffd58a" />
+          <stop offset="1" stopColor="#f0952a" />
+        </linearGradient>
+      </defs>
+      <rect x="5" y="17" width="6" height="10" rx="2" fill="url(#ni-rep)" />
+      <rect x="13" y="10" width="6" height="17" rx="2" fill="url(#ni-rep)" />
+      <rect x="21" y="5" width="6" height="22" rx="2" fill="url(#ni-rep)" />
     </>
   ),
   project: (
