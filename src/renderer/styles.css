@@ -714,3 +714,13 @@ button.primary.danger-fill { background-color: var(--danger); border-color: colo
 .chip.task.done { opacity: .55; text-decoration: line-through; }
 .cal-task-toggle { display: flex; align-items: center; gap: 8px; margin: 4px 0 8px; font-size: 14px; cursor: pointer; }
 .cal-task-toggle .dot { width: 10px; height: 10px; border-radius: 50%; }
+
+/* ===== Task trong My day ===== */
+.tint-task { background: color-mix(in srgb, #2fa874 12%, var(--bg)); }
+.myday .day-group h3.late { color: var(--danger); }
+.myday .day-group h3.redo { color: #d9480f; }
+.mytask-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.mytask { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: var(--card); border: 1px solid var(--border); border-radius: 12px; min-width: 0; }
+.mytask input[type=checkbox] { width: 17px; height: 17px; accent-color: var(--accent); cursor: pointer; flex: none; }
+.mytask-title { flex: 1; min-width: 0; text-align: left; background: none; border: none; box-shadow: none; padding: 0; font: inherit; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+.mytask-title:hover { color: var(--accent); }

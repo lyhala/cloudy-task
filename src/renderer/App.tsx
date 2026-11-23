@@ -16,7 +16,7 @@ import {
   type Task,
   type ThemeMode
 } from '@core/types'
-import { childrenOf, isOverdue, topLevel } from '@core/tasks'
+import { childrenOf, isOverdue, toggleTask as toggleTaskDone, topLevel } from '@core/tasks'
 import { bucketOf, dateStr, isDoneNow, snooze, toggleDone } from '@core/reminders'
 import type { DesktopSettings, Shortcuts } from '../desktop-shared/types'
 import { NavIcon } from './Icons'
@@ -652,6 +652,14 @@ export function App({ compactStart = false }: { compactStart?: boolean }) {
       <main className="main">
         {section === 'myday' && (
           <MyDay
+            tasks={tasks}
+            projects={projects}
+            onToggleTask={(t) => saveTask(toggleTaskDone(t, Date.now()))}
+            onOpenTask={(id) => {
+              setSection('task')
+              setFocusTask(null)
+              window.setTimeout(() => setFocusTask(id), 0)
+            }}
             reminders={reminders}
             now={now}
             a={rowActions}

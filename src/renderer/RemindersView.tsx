@@ -22,6 +22,8 @@ import cheerCat from './assets/cheer-cat.webp'
 import cheerCloud from './assets/cheer-cloud.webp'
 import { attendeeNames, formatRange, withoutPushedDuplicates, occurrencesBetween, touchesDay, wallToMs, type CalEvent, type CalendarSource, type Occurrence } from '@core/calendar'
 import { MiniCalendar } from './MiniCalendar'
+import { myDayTasks } from '@core/tasks'
+import type { Project, Task } from '@core/types'
 import { displayTitle, newId, newReminder, type Note, type RepeatKind, type RepeatUnit, type Reminder } from '@core/types'
 
 export interface RowActions {
@@ -176,6 +178,10 @@ export function RemindersView({ reminders, now, a, onNew }: ViewProps) {
 }
 
 interface MyDayProps {
+  tasks: Task[]
+  projects: Project[]
+  onToggleTask: (t: Task) => void
+  onOpenTask: (id: string) => void
   reminders: Reminder[]
   now: number
   a: RowActions
@@ -197,7 +203,7 @@ interface DayGroup {
   items: { r: Reminder; readOnly: boolean }[]
 }
 
-export function MyDay({ reminders, now, a, compact, days, name, events, calendars, onOpenEvent, onExpand, onNew, tone }: MyDayProps) {
+export function MyDay({ tasks, projects, onToggleTask, onOpenTask, reminders, now, a, compact, days, name, events, calendars, onOpenEvent, onExpand, onNew, tone }: MyDayProps) {
   const groups = useMemo(() => {
     const live = reminders.filter((r) => !r.deletedAt)
     const pick = (b: Bucket) => sortReminders(live.filter((r) => bucketOf(r, now) === b), now)
@@ -229,7 +235,9 @@ export function MyDay({ reminders, now, a, compact, days, name, events, calendar
     const base = parseDate(date).toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit' })
     return date === addDays(todayStr, 1) ? `Ngày mai · ${base}` : base
   }
-  const empty = groups.overdue.length + groups.today.length + groups.upcoming.length === 0
+  const myTasks = useMemo(() => myDayTasks(tasks, dateStr(new Date(now))), [tasks, now])
+  const taskCount = myTasks.overdue.length + myTasks.redo.length + myTasks.today.length
+  const empty = groups.overdue.length + groups.today.length + groups.upcoming.length + taskCount === 0
   // Lịch hôm nay: sự kiện của các lịch đang bật, kèm người tham dự
   const colorOf = (id: string) => calendars.find((c) => c.id === id)?.color ?? '#7c6cf0'
   const agenda = useMemo(() => {
@@ -286,6 +294,45 @@ export function MyDay({ reminders, now, a, compact, days, name, events, calendar
                   )
                 })}
               </ul>
+            </section>
+          )}
+          {taskCount > 0 && (
+            <section className="card tint-task">
+              <h2>Task</h2>
+              {(
+                [
+                  ['Quá hạn', myTasks.overdue, 'late'],
+                  ['Cần làm lại (Re-do)', myTasks.redo, 'redo'],
+                  ['Hôm nay', myTasks.today, '']
+                ] as const
+              )
+                .filter(([, list]) => list.length > 0)
+                .map(([label, list, cls]) => (
+                  <div key={label} className="day-group">
+                    <h3 className={cls}>{label}</h3>
+                    <ul className="mytask-list">
+                      {list.map((t) => {
+                        const proj = projects.find((p) => p.id === t.projectId)
+                        return (
+                          <li key={t.id} className="mytask">
+                            <input type="checkbox" checked={false} title="Đánh dấu xong (chuyển sang Archived)" onChange={() => onToggleTask(t)} />
+                            <button className="mytask-title" onClick={() => onOpenTask(t.id)} title="Mở task">
+                              {t.title.trim() || '(Chưa đặt tên)'}
+                            </button>
+                            {proj && (
+                              <span className="proj-chip">
+                                <i style={{ background: proj.color }} />
+                                {proj.name}
+                              </span>
+                            )}
+                            {t.end && <small className={`t-dates ${t.end < todayStr ? 'late' : ''}`}>Hạn {t.end.slice(8)}/{t.end.slice(5, 7)}</small>}
+                            <span className={`st st-${t.status}`}>{t.status === 'in_progress' ? 'In progress' : t.status === 'redo' ? 'Re-do' : 'Pending'}</span>
+                          </li>
+                        )
+                      })}
+                    </ul>
+                  </div>
+                ))}
             </section>
           )}
           {groups.overdue.length > 0 && (

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { buildBackup, parseBackup, planImport } from './backup'
 import { search } from './search'
-import { childrenOf, compareActive, countByStatus, describeTaskAlert, expiredArchived, isOverdue, progressOf, setStatus, taskAlertsFor, taskSpan, toggleTask } from './tasks'
+import { childrenOf, compareActive, countByStatus, describeTaskAlert, expiredArchived, isOverdue, myDayTasks, progressOf, setStatus, taskAlertsFor, taskSpan, toggleTask } from './tasks'
 import { DEFAULT_SETTINGS, newProject, newTask } from './types'
 
 const t = (name: string, fn: () => void) => (fn(), console.log('ok   ', name))
@@ -138,4 +138,20 @@ t('khoảng ngày của task trên lịch', () => {
   // kết thúc trước bắt đầu (nhập sai): thu về một ngày, không vẽ ngược
   assert.deepEqual(taskSpan(newTask({ start: '2026-11-20', end: '2026-11-10' })), ['2026-11-20', '2026-11-20'])
 })
-console.log('12 test task đạt')
+t('My day: quá hạn, Re-do và hôm nay, không trùng nhau, bỏ task xong, task con và task chưa có ngày', () => {
+  const T = '2026-11-23'
+  const late = newTask({ title: 'trễ', end: '2026-11-20' })
+  const lateRedo = newTask({ title: 'trễ và redo', end: '2026-11-21', status: 'redo' })
+  const redo = newTask({ title: 'redo', status: 'redo' })
+  const running = newTask({ title: 'đang chạy', start: '2026-11-22', end: '2026-11-25', status: 'in_progress' })
+  const dueToday = newTask({ title: 'hạn hôm nay', end: T })
+  const future = newTask({ title: 'tuần sau', start: '2026-11-30', end: '2026-12-02' })
+  const nodate = newTask({ title: 'không ngày' })
+  const done = setStatus(newTask({ title: 'xong', end: '2026-11-20' }), 'done', NOW)
+  const kid = newTask({ title: 'con', end: '2026-11-20', parentId: late.id })
+  const my = myDayTasks([late, lateRedo, redo, running, dueToday, future, nodate, done, kid], T)
+  assert.deepEqual(my.overdue.map((x) => x.title), ['trễ', 'trễ và redo'])
+  assert.deepEqual(my.redo.map((x) => x.title), ['redo'])
+  assert.deepEqual(my.today.map((x) => x.title).sort(), ['hạn hôm nay', 'đang chạy'])
+})
+console.log('13 test task đạt')

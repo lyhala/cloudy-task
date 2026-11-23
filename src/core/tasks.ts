@@ -116,3 +116,29 @@ export function taskSpan(t: Task): [string, string] | null {
   if (t.start) return [t.start, t.start]
   return null
 }
+
+export interface MyDayTasks {
+  /** Hạn đã qua, chưa xong. */
+  overdue: Task[]
+  /** Bị yêu cầu sửa lại (Re-do) và chưa quá hạn. */
+  redo: Task[]
+  /** Đang trong khoảng ngày của task hôm nay (hoặc hạn đúng hôm nay), chưa xong. */
+  today: Task[]
+}
+
+/** Task cần chú ý hôm nay cho màn My day: chỉ task cấp trên cùng, chưa xong, chưa archived. */
+export function myDayTasks(tasks: Task[], today: string): MyDayTasks {
+  const active = topLevel(tasks).filter((t) => t.archivedAt === null && t.status !== 'done')
+  const overdue = active.filter((t) => isOverdue(t, today)).sort(compareActive)
+  const seen = new Set(overdue.map((t) => t.id))
+  const redo = active.filter((t) => !seen.has(t.id) && t.status === 'redo').sort(compareActive)
+  for (const t of redo) seen.add(t.id)
+  const todays = active
+    .filter((t) => {
+      if (seen.has(t.id)) return false
+      const span = taskSpan(t)
+      return !!span && span[0] <= today && today <= span[1]
+    })
+    .sort(compareActive)
+  return { overdue, redo, today: todays }
+}
