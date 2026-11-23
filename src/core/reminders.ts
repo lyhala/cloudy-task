@@ -383,6 +383,7 @@ export function makeNotification(r: Reminder, kind: NotifyKind, at: number): App
 
 export const NOTIFY_LABELS: Record<NotifyKind, string> = {
   task: 'Task',
+  habit: 'Habit',
   due: 'Đến giờ',
   daily: 'Nhắc hàng ngày',
   overdue: 'Quá hạn',

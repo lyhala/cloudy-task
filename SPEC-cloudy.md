@@ -85,6 +85,9 @@ Tự xóa Archived:
 - Report habit theo tuần và tháng: tỷ lệ hoàn thành từng habit, chuỗi ngày liên tiếp (streak), biểu đồ cột theo ngày.
 - **Dữ liệu habit chỉ lưu trên máy, không đồng bộ Drive**, tự xóa sau **3 tháng** (chỉnh được trong Setting). Hệ quả: report habit chỉ nhìn lại tối đa 3 tháng, đổi máy hoặc cài lại thì mất lịch sử. Định nghĩa habit (tên, ngày, giờ) cũng chỉ ở máy.
 - Habit không hiện trên lịch.
+- Chi tiết đã làm: popup nổi hiện khi tới khung giờ mà chưa trả lời (trễ quá 30 phút, ví dụ app đóng lúc đó, thì không bật popup nữa, vẫn ghi vào Notification). Đóng popup bằng ✕ mà không trả lời thì khung giờ vẫn chờ trong ngày và trả lời được ở trang Habit. Khung giờ chưa trả lời khi hết ngày tính là "Lỡ".
+- Phần "tự xóa sau 3 tháng" áp dụng cho **lịch sử trả lời**; định nghĩa habit (tên, ngày, giờ) giữ tới khi người dùng xóa. Habit không nằm trong file xuất dữ liệu.
+- Report habit (trang Habit): theo tuần (thứ Hai đến Chủ nhật) hoặc tháng, mỗi habit có tỷ lệ làm, đã làm/bỏ qua/lỡ, chuỗi ngày hiện tại và dài nhất, lưới màu theo ngày.
 
 ## Note và Reminder
 

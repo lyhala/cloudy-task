@@ -37,6 +37,8 @@ const desktop = {
   tickNow: (): Promise<void> => ipcRenderer.invoke('desktop:tickNow'),
   onNoteChanged: (cb: (note: Note) => void) => subscribe('note:changed', cb),
   onReminderChanged: (cb: (r: Reminder) => void) => subscribe('reminder:changed', cb),
+  /** Habit hoặc lịch sử trả lời vừa đổi (từ cửa sổ nhắc hoặc dọn log cũ): nạp lại. */
+  onHabitChanged: (cb: () => void) => subscribe<unknown>('habit:changed', () => cb()),
   onNotificationAdded: (cb: (n: AppNotification) => void) => subscribe('notification:added', cb),
   /** Lịch hoặc sự kiện vừa đổi (từ cửa sổ khác, hoặc kéo về từ Google/iCal): nạp lại. */
   onCalendarChanged: (cb: () => void) => subscribe<unknown>('calendar:changed', () => cb())

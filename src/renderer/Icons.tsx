@@ -2,7 +2,7 @@
 import clayAvatar from './assets/avatar-clay.webp'
 import clayAvatarPurple from './assets/avatar-clay-purple.webp'
 
-export type NavIconKind = 'myday' | 'note' | 'task' | 'project' | 'report' | 'reminder' | 'calendar' | 'bell' | 'settings'
+export type NavIconKind = 'myday' | 'note' | 'task' | 'project' | 'report' | 'habit' | 'reminder' | 'calendar' | 'bell' | 'settings'
 
 const SUN_RAYS = [0, 45, 90, 135, 180, 225, 270, 315]
 const GEAR_TEETH = [0, 45, 90, 135]
@@ -66,6 +66,19 @@ const glyphs: Record<NavIconKind, React.ReactNode> = {
       </defs>
       <rect x="5" y="4" width="22" height="24" rx="6" fill="url(#ni-task)" />
       <path d="M10.5 16.5 L14.5 20.5 L22 12" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+    </>
+  ),
+  habit: (
+    <>
+      <defs>
+        <linearGradient id="ni-habit" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#a6e6a0" />
+          <stop offset="1" stopColor="#3aa655" />
+        </linearGradient>
+      </defs>
+      <path d="M16 28 V15" stroke="#3aa655" strokeWidth="2.6" strokeLinecap="round" />
+      <path d="M16 17 C8 17 5 12 5 6 C12 6 16 9 16 17 Z" fill="url(#ni-habit)" />
+      <path d="M16 14 C16 8 20 5 27 5 C27 12 23 14 16 14 Z" fill="url(#ni-habit)" opacity=".85" />
     </>
   ),
   report: (

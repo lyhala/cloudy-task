@@ -1,4 +1,5 @@
 import type { CalEvent, CalendarSource } from './calendar'
+import type { Habit, HabitLog } from './habits'
 import type { AppNotification, Folder, Note, Project, Reminder, Settings, Task } from './types'
 
 /** Lớp trung gian lưu trữ. Desktop dùng SQLite, mobile sau này dùng cách khác. */
@@ -16,6 +17,11 @@ export interface Storage {
   listReminders(): Promise<Reminder[]>
   /** Project và task (gồm cả mục đã xóa; giao diện tự lọc). */
   listProjects(): Promise<Project[]>
+  /** Habit và lịch sử trả lời: chỉ lưu trên máy, không đồng bộ Drive. */
+  listHabits(): Promise<Habit[]>
+  saveHabit(habit: Habit): Promise<void>
+  listHabitLogs(): Promise<HabitLog[]>
+  saveHabitLog(log: HabitLog): Promise<void>
   saveProject(project: Project): Promise<void>
   listTasks(): Promise<Task[]>
   saveTask(task: Task): Promise<void>
@@ -44,6 +50,10 @@ export const STORAGE_METHODS = [
   'listReminders',
   'saveReminder',
   'listProjects',
+  'listHabits',
+  'saveHabit',
+  'listHabitLogs',
+  'saveHabitLog',
   'saveProject',
   'listTasks',
   'saveTask',

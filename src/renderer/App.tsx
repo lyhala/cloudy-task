@@ -36,6 +36,8 @@ import { NoteBadge, NotePaper } from './NotePaper'
 import { MyDay, ReminderForm, RemindersView, type RowActions } from './RemindersView'
 import { ProjectsView } from './ProjectsView'
 import { ReportView } from './ReportView'
+import { HabitsView } from './HabitsView'
+import type { Habit, HabitLog } from '@core/habits'
 import { TasksView } from './TasksView'
 import { useNow } from './useNow'
 import { applyTheme, isDarkMode, normalizeSettings, themeBase } from './theme'
@@ -53,7 +55,7 @@ const fold = (t: string) =>
 
 const storage = window.api.storage
 
-type Section = 'myday' | 'note' | 'task' | 'project' | 'report' | 'reminder' | 'calendar' | 'notif' | 'settings'
+type Section = 'myday' | 'note' | 'task' | 'project' | 'report' | 'habit' | 'reminder' | 'calendar' | 'notif' | 'settings'
 
 export function App({ compactStart = false }: { compactStart?: boolean }) {
   const [notes, setNotes] = useState<Note[]>([])
@@ -66,6 +68,8 @@ export function App({ compactStart = false }: { compactStart?: boolean }) {
   const [reminders, setReminders] = useState<Reminder[]>([])
   const [projects, setProjects] = useState<Project[]>([])
   const [tasks, setTasks] = useState<Task[]>([])
+  const [habits, setHabits] = useState<Habit[]>([])
+  const [habitLogs, setHabitLogs] = useState<HabitLog[]>([])
   const [focusTask, setFocusTask] = useState<string | null>(null)
   const [notifs, setNotifs] = useState<AppNotification[]>([])
   const [showProfile, setShowProfile] = useState(false)
@@ -85,10 +89,12 @@ export function App({ compactStart = false }: { compactStart?: boolean }) {
   latest.current = notes
 
   useEffect(() => {
-    void Promise.all([storage.listNotes(), storage.listFolders(), storage.getSettings(), storage.listReminders(), storage.listNotifications(), storage.listCalendars(), storage.listEvents(), storage.listProjects(), storage.listTasks()]).then(
-      ([n, f, s, r, nf, cals, evs, pj, tk]) => {
+    void Promise.all([storage.listNotes(), storage.listFolders(), storage.getSettings(), storage.listReminders(), storage.listNotifications(), storage.listCalendars(), storage.listEvents(), storage.listProjects(), storage.listTasks(), storage.listHabits(), storage.listHabitLogs()]).then(
+      ([n, f, s, r, nf, cals, evs, pj, tk, hb, hl]) => {
         setProjects(pj)
         setTasks(tk)
+        setHabits(hb)
+        setHabitLogs(hl)
         setNotes(n)
         setFolders(f.filter((x) => !x.deletedAt))
         const fixed = normalizeSettings(s)
@@ -153,6 +159,18 @@ export function App({ compactStart = false }: { compactStart?: boolean }) {
         void Promise.all([storage.listCalendars(), storage.listEvents()]).then(([c, e]) => {
           setCalendars(c)
           setEvents(e)
+        })
+      }),
+    []
+  )
+
+  // Habit hoặc lịch sử trả lời đổi từ cửa sổ nhắc, hoặc log cũ vừa được dọn: nạp lại.
+  useEffect(
+    () =>
+      window.api.desktop.onHabitChanged(() => {
+        void Promise.all([storage.listHabits(), storage.listHabitLogs()]).then(([hb, hl]) => {
+          setHabits(hb)
+          setHabitLogs(hl)
         })
       }),
     []
@@ -381,6 +399,22 @@ export function App({ compactStart = false }: { compactStart?: boolean }) {
     setProjects((all) => (all.some((x) => x.id === p.id) ? all.map((x) => (x.id === p.id ? p : x)) : [...all, p]))
     void storage.saveProject(p)
   }
+  const saveHabit = (h: Habit) => {
+    setHabits((all) => (all.some((x) => x.id === h.id) ? all.map((x) => (x.id === h.id ? h : x)) : [...all, h]))
+    void storage.saveHabit(h)
+  }
+  const saveHabitLog = (l: HabitLog) => {
+    setHabitLogs((all) => (all.some((x) => x.id === l.id) ? all.map((x) => (x.id === l.id ? l : x)) : [...all, l]))
+    void storage.saveHabitLog(l)
+  }
+  const deleteHabit = (h: Habit) =>
+    setConfirmReq({
+      title: 'Xóa habit?',
+      message: `Habit "${h.name}" sẽ bị xóa, kèm lịch sử trả lời của nó. Muốn chỉ ngừng nhắc thì tắt “Đang bật”.`,
+      confirmLabel: 'Xóa',
+      danger: true,
+      onConfirm: () => saveHabit({ ...h, deletedAt: Date.now(), updatedAt: Date.now() })
+    })
   const deleteTask = (t: Task) => {
     const kids = childrenOf(tasks, t.id)
     setConfirmReq({
@@ -453,6 +487,10 @@ export function App({ compactStart = false }: { compactStart?: boolean }) {
   const openFromNotification = (n: AppNotification) => {
     setNotifs((all) => all.map((x) => (x.id === n.id ? { ...x, readAt: x.readAt ?? Date.now() } : x)))
     if (!n.readAt) void storage.saveNotification({ ...n, readAt: Date.now() })
+    if (n.kind === 'habit') {
+      setSection('habit')
+      return
+    }
     if (n.kind === 'task') {
       setSection('task')
       setFocusTask(null)
@@ -633,6 +671,10 @@ export function App({ compactStart = false }: { compactStart?: boolean }) {
             <span>Reminder</span>
             {overdueCount > 0 && <span className="count warn">{overdueCount}</span>}
           </button>
+          <button className={`nav-item ${section === 'habit' ? 'active' : ''}`} onClick={() => setSection('habit')}>
+            <NavIcon kind="habit" />
+            <span>Habit</span>
+          </button>
           <button className={`nav-item ${section === 'calendar' ? 'active' : ''}`} onClick={() => setSection('calendar')}>
             <NavIcon kind="calendar" />
             <span>Calendar</span>
@@ -733,6 +775,23 @@ export function App({ compactStart = false }: { compactStart?: boolean }) {
                   <small className="bad">Ngắn hơn 12 tháng: Report theo kỳ dài sẽ thiếu task đã xong.</small>
                 )}
               </div>
+              <div className="theme-panel sync-card">
+                <b>Habit</b>
+                <label>
+                  Lịch sử trả lời habit tự xóa sau
+                  <span className="inline-num">
+                    <input
+                      type="number"
+                      min={0}
+                      max={24}
+                      value={settings.habitMonths ?? 3}
+                      onChange={(e) => updateSettings({ habitMonths: Math.min(24, Math.max(0, Math.floor(Number(e.target.value) || 0))) })}
+                    />
+                    tháng
+                  </span>
+                </label>
+                <small className="muted">Điền 0 để không bao giờ xóa. Dữ liệu habit chỉ lưu trên máy này, không đồng bộ qua Drive và không nằm trong file xuất dữ liệu.</small>
+              </div>
               <ThemePanel settings={settings} onChange={updateSettings} />
               <DesktopPanel />
               <VersionLine />
@@ -748,6 +807,9 @@ export function App({ compactStart = false }: { compactStart?: boolean }) {
               <TasksView tasks={tasks} projects={projects} today={todayStr} archiveMonths={settings.archiveMonths ?? 24} focusId={focusTask} onSave={saveTask} onDelete={deleteTask} />
             </div>
           </div>
+        )}
+        {section === 'habit' && (
+          <HabitsView habits={habits} logs={habitLogs} now={now} retentionMonths={settings.habitMonths ?? 3} onSaveHabit={saveHabit} onDeleteHabit={deleteHabit} onSaveLog={saveHabitLog} />
         )}
         {section === 'report' && (
           <ReportView

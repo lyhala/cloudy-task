@@ -2,6 +2,7 @@ import { join } from 'node:path'
 import { app, BrowserWindow, dialog, ipcMain, shell, webContents } from 'electron'
 import { readFile, writeFile } from 'node:fs/promises'
 import { STORAGE_METHODS } from '@core/storage'
+import { logCutoffDate } from '@core/habits'
 import { expiredArchived } from '@core/tasks'
 import { TRASH_DAYS } from '@core/types'
 import { CalendarSyncManager } from './calendar-sync'
@@ -94,6 +95,8 @@ if (!app.requestSingleInstanceLock()) {
     const BROADCAST_ON_SAVE: Record<string, string> = {
       saveNote: 'note:changed',
       saveReminder: 'reminder:changed',
+      saveHabit: 'habit:changed',
+      saveHabitLog: 'habit:changed',
       saveNotification: 'notification:added',
       saveCalendar: 'calendar:changed',
       saveEvent: 'calendar:changed'
@@ -151,8 +154,17 @@ if (!app.requestSingleInstanceLock()) {
     })
     sync.start()
     gcal.start()
+    // Lịch sử habit cũ hơn số tháng giữ (mặc định 3) tự xóa.
+    const cleanupHabits = async (): Promise<void> => {
+      const cutoff = logCutoffDate(Date.now(), (await storage.getSettings()).habitMonths)
+      if (cutoff && storage.purgeHabitLogs(cutoff) > 0) broadcast('habit:changed', null)
+    }
     void cleanupArchived()
-    const cleanupTimer = setInterval(() => void cleanupArchived(), 6 * 3_600_000)
+    void cleanupHabits()
+    const cleanupTimer = setInterval(() => {
+      void cleanupArchived()
+      void cleanupHabits()
+    }, 6 * 3_600_000)
     setupAutoUpdate((msg) => broadcast('update:message', msg))
     ipcMain.handle('update:info', () => ({ version: app.getVersion(), ...updatesAllowed() }))
     app.on('before-quit', () => {

@@ -111,9 +111,11 @@ export interface Settings {
   avatar: string
   /** Task đã archived tự xóa sau bấy nhiêu tháng (0 = không bao giờ xóa). */
   archiveMonths: number
+  /** Lịch sử trả lời habit giữ bấy nhiêu tháng rồi tự xóa (0 = không bao giờ xóa). */
+  habitMonths: number
 }
 
-export const DEFAULT_SETTINGS: Settings = { themeMode: 'system', themeColor: 'blue', customBg: null, customAccent: null, upcomingDays: 3, profileName: '', avatar: 'preset:0', eventReminderMinutes: 15, archiveMonths: 24 }
+export const DEFAULT_SETTINGS: Settings = { themeMode: 'system', themeColor: 'blue', customBg: null, customAccent: null, upcomingDays: 3, profileName: '', avatar: 'preset:0', eventReminderMinutes: 15, archiveMonths: 24, habitMonths: 3 }
 
 export const PAPER_COLORS = ['#ffffff', '#fff3b0', '#ffd6d6', '#d4f1d4', '#d6e8ff', '#ead6ff']
 
@@ -262,7 +264,7 @@ export function newReminder(partial: Partial<Reminder> = {}): Reminder {
   }
 }
 
-export type NotifyKind = 'due' | 'daily' | 'overdue' | 'missed' | 'event' | 'task'
+export type NotifyKind = 'due' | 'daily' | 'overdue' | 'missed' | 'event' | 'task' | 'habit'
 
 // ---- Project và Task ----
 

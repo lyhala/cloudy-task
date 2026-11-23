@@ -3,6 +3,7 @@ import type { CalEvent, CalendarSource } from '@core/calendar'
 import type { Storage } from '@core/storage'
 import type { SyncLocal, SyncState, SyncStateStore } from '@core/sync/engine'
 import type { SyncEntity, SyncKind } from '@core/sync/format'
+import type { Habit, HabitLog } from '@core/habits'
 import { DEFAULT_SETTINGS, type AppNotification, type Folder, type Note, type Project, type Reminder, type Settings, type Task } from '@core/types'
 
 // node:sqlite có sẵn trong Node của Electron, không cần build native.
@@ -21,6 +22,8 @@ export class SqliteStorage implements Storage {
       CREATE TABLE IF NOT EXISTS reminders (id TEXT PRIMARY KEY, data TEXT NOT NULL, deleted_at INTEGER);
       CREATE TABLE IF NOT EXISTS projects (id TEXT PRIMARY KEY, data TEXT NOT NULL, deleted_at INTEGER);
       CREATE TABLE IF NOT EXISTS tasks (id TEXT PRIMARY KEY, data TEXT NOT NULL, deleted_at INTEGER);
+      CREATE TABLE IF NOT EXISTS habits (id TEXT PRIMARY KEY, data TEXT NOT NULL);
+      CREATE TABLE IF NOT EXISTS habit_logs (id TEXT PRIMARY KEY, data TEXT NOT NULL, date TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS notifications (id TEXT PRIMARY KEY, data TEXT NOT NULL, at INTEGER NOT NULL);
       CREATE TABLE IF NOT EXISTS calendars (id TEXT PRIMARY KEY, data TEXT NOT NULL, deleted_at INTEGER);
       CREATE TABLE IF NOT EXISTS events (id TEXT PRIMARY KEY, data TEXT NOT NULL, deleted_at INTEGER, cal TEXT NOT NULL, start_ms INTEGER, end_ms INTEGER);
@@ -110,6 +113,29 @@ export class SqliteStorage implements Storage {
     this.db
       .prepare('INSERT INTO tasks (id, data, deleted_at) VALUES (?, ?, ?) ON CONFLICT(id) DO UPDATE SET data = excluded.data, deleted_at = excluded.deleted_at')
       .run(t.id, JSON.stringify(t), t.deletedAt)
+  }
+
+  // ---- Habit: chỉ ở máy này, không đi qua đồng bộ ----
+
+  async listHabits(): Promise<Habit[]> {
+    return this.db.prepare('SELECT data FROM habits').all().map((r) => JSON.parse(r.data as string))
+  }
+
+  async saveHabit(h: Habit): Promise<void> {
+    this.db.prepare('INSERT INTO habits (id, data) VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET data = excluded.data').run(h.id, JSON.stringify(h))
+  }
+
+  async listHabitLogs(): Promise<HabitLog[]> {
+    return this.db.prepare('SELECT data FROM habit_logs').all().map((r) => JSON.parse(r.data as string))
+  }
+
+  async saveHabitLog(l: HabitLog): Promise<void> {
+    this.db.prepare('INSERT INTO habit_logs (id, data, date) VALUES (?, ?, ?) ON CONFLICT(id) DO UPDATE SET data = excluded.data, date = excluded.date').run(l.id, JSON.stringify(l), l.date)
+  }
+
+  /** Xóa lịch sử habit từ ngày `beforeDate` ('YYYY-MM-DD') trở về trước. Trả về số dòng đã xóa. */
+  purgeHabitLogs(beforeDate: string): number {
+    return Number(this.db.prepare('DELETE FROM habit_logs WHERE date < ?').run(beforeDate).changes)
   }
 
   async listNotifications(): Promise<AppNotification[]> {

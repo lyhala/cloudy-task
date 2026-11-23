@@ -5,6 +5,7 @@ import { makeEventNotification, occurrencesBetween } from '@core/calendar'
 import type { SqliteStorage } from './sqlite-storage'
 import { dateStr, describeDue, inQuietHours, makeNotification, MISSED_AFTER_MS, NOTIFY_LABELS, planFire } from '@core/reminders'
 import { describeTaskAlert, taskAlertsFor } from '@core/tasks'
+import { dueSlots, indexLogs, slotAt, slotKey } from '@core/habits'
 import { FORMAT_VERSION, newId, newNote, NOTE_SIZES, type AppNotification, type NotifyKind, type Reminder } from '@core/types'
 import {
   DEFAULT_DESKTOP_SETTINGS,
@@ -232,6 +233,40 @@ export function setupDesktop(deps: Deps): { quit: () => void } {
     deps.loadRenderer(win, `/event/${eventId}/${start}`)
   }
 
+  // Cửa sổ nhắc habit: hỏi "Đã làm" hoặc "Bỏ qua" cho một khung giờ.
+  const habitWindows = new Map<string, BrowserWindow>()
+  function openHabitWindow(habitId: string, date: string, time: string): void {
+    const key = slotKey(habitId, date, time)
+    const existing = habitWindows.get(key)
+    if (existing && !existing.isDestroyed()) {
+      existing.show()
+      existing.focus()
+      return
+    }
+    const offset = (habitWindows.size % 6) * 28
+    const win = new BrowserWindow({
+      width: 340,
+      height: 230,
+      minWidth: 280,
+      minHeight: 190,
+      frame: false,
+      show: false,
+      alwaysOnTop: true,
+      title: 'Habit',
+      webPreferences: { preload: deps.preloadPath, contextIsolation: true, sandbox: true }
+    })
+    win.center()
+    const [x, y] = win.getPosition()
+    win.setPosition(x + offset, y + offset)
+    habitWindows.set(key, win)
+    win.once('ready-to-show', () => {
+      win.show()
+      win.moveTop()
+    })
+    win.on('closed', () => habitWindows.delete(key))
+    deps.loadRenderer(win, `/habit/${habitId}/${date}/${time.replace(':', '')}`)
+  }
+
   function osNotify(title: string, body: string): void {
     if (!Notification.isSupported()) return
     const n = new Notification({ title, body })
@@ -286,6 +321,28 @@ export function setupDesktop(deps: Deps): { quit: () => void } {
     }
   }
 
+  /** Nhắc habit khi tới khung giờ mà chưa trả lời. Trễ quá 30 phút (app đóng lúc đó) thì không bật popup nữa. */
+  async function checkHabitAlerts(now: number, quiet: boolean): Promise<void> {
+    const habits = (await deps.storage.listHabits()).filter((h) => h.active && !h.deletedAt)
+    if (!habits.length) return
+    const today = dateStr(new Date(now))
+    const logs = indexLogs(await deps.storage.listHabitLogs())
+    for (const h of habits) {
+      for (const time of dueSlots(h, today, now, logs)) {
+        const key = `habit:${slotKey(h.id, today, time)}`
+        if (deps.storage.hasEventAlert(key)) continue
+        deps.storage.markEventAlert(key, now)
+        if (now - slotAt(today, time) > 30 * 60_000) continue
+        const n: AppNotification = { v: FORMAT_VERSION, id: newId(), reminderId: h.id, kind: 'habit', title: `${h.name} · ${time}`, at: now, readAt: null }
+        await deps.storage.saveNotification(n)
+        deps.broadcast('notification:added', n)
+        if (quiet) continue
+        osNotify(`Habit: ${h.name}`, `${time} · Bạn đã làm chưa?`)
+        openHabitWindow(h.id, today, time)
+      }
+    }
+  }
+
   let ticking = false
   async function tick(): Promise<void> {
     if (ticking) return
@@ -324,6 +381,7 @@ export function setupDesktop(deps: Deps): { quit: () => void } {
       }
       await checkEventAlerts(now, quiet)
       await checkTaskAlerts(now, quiet)
+      await checkHabitAlerts(now, quiet)
       if (missedCount) osNotify('Reminder đã lỡ', `Có ${missedCount} nhắc việc đến hạn lúc app đóng. Mở app để xem.`)
     } finally {
       ticking = false

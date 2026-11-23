@@ -17,13 +17,15 @@ import '@fontsource/roboto-mono/vietnamese-400.css'
 import './styles.css'
 import { App } from './App'
 import { EventSticky } from './EventSticky'
+import { HabitSticky } from './HabitSticky'
 import { ReminderSticky } from './ReminderSticky'
 import { StickyApp } from './StickyApp'
 
 const sticky = /^#\/sticky\/(.+)$/.exec(location.hash)
 const reminder = /^#\/reminder\/(.+)$/.exec(location.hash)
 const eventWin = /^#\/event\/([^/]+)\/(\d+)$/.exec(location.hash)
-if (sticky || reminder || eventWin) document.body.classList.add('sticky-window')
+const habitWin = /^#\/habit\/([^/]+)\/(\d{4}-\d{2}-\d{2})\/(\d{4})$/.exec(location.hash)
+if (sticky || reminder || eventWin || habitWin) document.body.classList.add('sticky-window')
 
 createRoot(document.getElementById('root')!).render(
   sticky ? (
@@ -32,5 +34,7 @@ createRoot(document.getElementById('root')!).render(
     <ReminderSticky id={reminder[1]} />
   ) : eventWin ? (
     <EventSticky id={eventWin[1]} start={Number(eventWin[2])} />
+  ) : habitWin ? (
+    <HabitSticky id={habitWin[1]} date={habitWin[2]} time={`${habitWin[3].slice(0, 2)}:${habitWin[3].slice(2)}`} />
   ) : <App compactStart={location.hash === '#/compact'} />
 )
